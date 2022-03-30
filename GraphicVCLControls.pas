@@ -447,7 +447,6 @@ type
     procedure SceneChanged(AParent: TWinControl); override;
     property Canvas: TCanvas read GetCanvas;
     procedure QueueFreeContext;
-    procedure DoFreeContext;
     procedure CreateWnd; override;
     procedure DestroyWnd; override;
     procedure CreateParams(var Params: TCreateParams); override;
@@ -458,6 +457,7 @@ type
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
   public
+    procedure DoFreeContext;
     function GetClientOffset: TPoint; override;
     procedure AddToFreeContext(Value: TFreeContextEvent);
     procedure SubscribeToContext(ACallBack: TCustomContextEvent);
@@ -1222,12 +1222,14 @@ end;
 procedure TCGScene.DoFreeContext;
 begin
   if not (csDesigning in ComponentState) then begin
-    FContext.Activate;
-    try
-      FreeContext(FContext);
-    finally
-      FContext.DestroyContext;
-      FreeAndNil(FContext);
+    if Assigned(FContext) then begin
+      FContext.Activate;
+      try
+        FreeContext(FContext);
+      finally
+        FContext.DestroyContext;
+        FreeAndNil(FContext);
+      end;
     end;
   end else
     FreeAndNil(FContext);
@@ -1248,7 +1250,7 @@ begin
   for i := 0 to FContextEventList.Count - 1 do
     FContextEventList[i](FContext, False);
 
-  inherited FreeContext(Context)
+  inherited FreeContext(Context);
 end;
 
 function TCGScene.GetCanvas: TCanvas;
@@ -1399,8 +1401,12 @@ end;
 
 procedure TCGScene.WMDestroy(var Message: TWMDestroy);
 begin
-  if Assigned(FContext) then
-    DoFreeContext;
+  DoFreeContext;
+  if FOwnDC <> 0 then
+  begin
+    ReleaseDC(Handle, FOwnDC);
+    FOwnDC := 0;
+  end;
   inherited;
 end;
 
