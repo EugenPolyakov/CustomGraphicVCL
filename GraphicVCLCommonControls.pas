@@ -132,6 +132,7 @@ type
     FText: TTextObjectBase;
     FSelStart, FSelEnd: TTextPosition;
     FOnChange: TNotifyEvent;
+    FHideSelection: Boolean;
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
@@ -143,13 +144,14 @@ type
     procedure SetSelStart(const Value: Integer);
     procedure SetSelText(const Value: string);
     procedure SetSelectionColor(const Value: TColor);
+    procedure SetHideSelection(const Value: Boolean);
   protected
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
-    procedure EnsureTextReady;
+    function EnsureTextReady: Boolean;
     procedure EnsureSelectionBrushReady;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
     procedure DesignPaint; override;
@@ -184,6 +186,7 @@ type
     property OnMouseEnter;
     property OnMouseLeave;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property HideSelection: Boolean read FHideSelection write SetHideSelection default True;
   end;
 
   TCGSpinEdit = class (TCGEdit)
@@ -215,12 +218,12 @@ type
       X, Y: Integer); override;
   public
     procedure IncrementValue(Incr: Integer);
+    constructor Create(AOwner: TComponent); override;
+    property Value: Integer read GetValue write SetValue;
   published
-    property Text stored False;
     property UpDown: TUpDownTemplate read FUpDown write SetUpDown;
     property MaxValue: Integer read FMaxValue write SetMaxValue;
     property MinValue: Integer read FMinValue write SetMinValue;
-    property Value: Integer read GetValue write SetValue;
   end;
 
   TScrolledWithFont = class (TControlWithInput)
@@ -748,6 +751,7 @@ begin
   FSelStart.LinePosition:= 0;
   FSelStart.InLinePosition:= 0;
   FSelEnd:= FSelStart;
+  FHideSelection:= True;
 end;
 
 procedure TCGEdit.DblClick;
@@ -808,17 +812,19 @@ begin
     else if FSelEnd.X - FTextOffset + 2 > R.Width then
       FTextOffset:= FSelEnd.X - R.Width + 2;
     if FSelStart <> FSelEnd then begin
-      if FSelStart.SymbolPosition <= FSelEnd.SymbolPosition then begin
-        rStart:= FSelStart;
-        rEnd:= FSelEnd;
-      end else begin
-        rStart:= FSelEnd;
-        rEnd:= FSelStart;
+      if IsFocused or not FHideSelection then begin
+        if FSelStart.SymbolPosition <= FSelEnd.SymbolPosition then begin
+          rStart:= FSelStart;
+          rEnd:= FSelEnd;
+        end else begin
+          rStart:= FSelEnd;
+          rEnd:= FSelStart;
+        end;
+        EnsureSelectionBrushReady;
+        FSelectionBrush.Value.DrawWithSize(
+            TPoint.Create(R.Left + rStart.X - FTextOffset, R.Top + (R.Height - FFontGenerator.LineHeight) div 2),
+            TPoint.Create(rEnd.X - rStart.X, FFontGenerator.LineHeight));
       end;
-      EnsureSelectionBrushReady;
-      FSelectionBrush.Value.DrawWithSize(
-          TPoint.Create(R.Left + rStart.X - FTextOffset, R.Top + (R.Height - FFontGenerator.LineHeight) div 2),
-          TPoint.Create(rEnd.X - rStart.X, FFontGenerator.LineHeight));
     end else if IsFocused then begin
       if FCursorBrush.Value = nil then
         FCursorBrush.UpdateValue(GetSolidBrush(Color), Scene);
@@ -841,9 +847,10 @@ begin
   FSelectionBrush.InitializeContext;
 end;
 
-procedure TCGEdit.EnsureTextReady;
+function TCGEdit.EnsureTextReady: Boolean;
 begin
-  if FText = nil then begin
+  Result:= FText <> nil;
+  if not Result and (FFontGenerator <> nil) then begin
     FText:= FFontGenerator.GenerateText();
     FText.Color:= Color;
     FText.Text:= Caption;
@@ -852,6 +859,7 @@ begin
     FText.WordWrap:= False;
     FText.MaxHeight:= Height;
     FText.MaxWidth:= Width;
+    Result:= True;
   end;
 end;
 
@@ -1008,6 +1016,14 @@ procedure TCGEdit.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited MouseUp(Button, Shift, X, Y);
+end;
+
+procedure TCGEdit.SetHideSelection(const Value: Boolean);
+begin
+  if FHideSelection <> Value then begin
+    FHideSelection:= Value;
+    Invalidate;
+  end;
 end;
 
 procedure TCGEdit.SetSelectionColor(const Value: TColor);
@@ -1235,6 +1251,12 @@ begin
     inherited;
 end;
 
+constructor TCGSpinEdit.Create(AOwner: TComponent);
+begin
+  inherited;
+  ControlStyle:= ControlStyle - [csSetCaption];
+end;
+
 procedure TCGSpinEdit.DesignPaint;
 var R: TRect;
 begin
@@ -1361,7 +1383,7 @@ end;
 procedure TCGSpinEdit.SetValue(const Value: Integer);
 begin
   Text:= IntToStr(Value);
-  if FText <> nil then begin
+  if EnsureTextReady then begin
     FSelEnd:= FText.GetCursorPosition(Length(Text));
     FSelStart:= FText.GetCursorPosition(0);
   end;
