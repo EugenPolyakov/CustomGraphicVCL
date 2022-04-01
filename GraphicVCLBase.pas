@@ -105,6 +105,7 @@ type
     function GenerateText(const AInfo: TTextData): TColored2DObject; virtual; abstract;
     function GetCursorPosition(const AInfo: TTextData; X, Y: Integer): TTextPosition; overload; virtual; abstract;
     function GetCursorPosition(const AInfo: TTextData; Index: Integer): TTextPosition; overload; virtual; abstract;
+    function GetSizes(const AInfo: TTextData): TPoint; virtual; abstract;
     procedure FreeContext(AContext: TCGContextBase); virtual; abstract;
     property OnNeedRefresh: TNotifyEvent write SetNeedRefresh;
     property LineHeight: Integer read GetLineHeight;

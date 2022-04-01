@@ -146,6 +146,7 @@ type
     function GenerateTextContext(const ATextData: TTextData): TColored2DObject;
     function GetCursorPosition(AText: TTextObjectBase; X, Y: Integer): TTextPosition; overload; virtual;
     function GetCursorPosition(AText: TTextObjectBase; Index: Integer): TTextPosition; overload; virtual;
+    function GetSizes(const AInfo: TTextData): TPoint;
     property TextObjectClass: TTextObjectBaseClass read FTextObjectClass write SetTextObjectClass;
     property Generic2DObjectClass: TGeneric2DObjectClass read FGeneric2DObjectClass write SetGeneric2DObjectClass;
     property FontGeneratorClass: TCGFontGeneratorClass read FFontGeneratorClass write SetFontGeneratorClass;
@@ -327,6 +328,7 @@ type
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
     procedure Loaded; override;
+    procedure AdjustSize; override;
     property Canvas: TCanvas read GetCanvas;
     procedure DesignPaint; virtual;
     procedure PaintWindow(DC: HDC); override;
@@ -439,6 +441,7 @@ type
     function GetRepeatTimer: Cardinal;
     procedure SetRepeatTimer(const Value: Cardinal);
   protected
+    procedure AdjustSize; override;
     procedure DoRepeatTimer(Sender: TObject);
     procedure CorrectMouseEvent(var Message: TWMMouse); override;
     function GetScene: TCGScene; override;
@@ -861,11 +864,13 @@ type
     function TranslateToChildWindows(var Message: TMessage): Boolean;
     procedure PrivateRemoveFocus(Removing: Boolean); inline;
     procedure SetMouseControl(AControl: TControl); inline;
+    procedure SetWindowPosCustom(X, Y, cx, cy: Integer; uFlags: UINT);
   end;
 
   TControlHelper = class helper for TControl
     procedure PrivateSetBounds(ALeft, ATop, AWidth, AHeight: Integer);
     procedure PrivateUpdateAnchorRules;
+    procedure ProcessWMWindowPosChanged(var Message: TWMWindowPosChanged);
   end;
 
   TSizeConstraintsHelper = class helper for TSizeConstraints
@@ -1018,6 +1023,26 @@ begin
   Self.FMouseInClient:= AControl <> nil;
 end;
 
+procedure TWinControlHelper.SetWindowPosCustom(X, Y, cx, cy: Integer;
+  uFlags: UINT);
+var c: TWMWindowPosChanged;
+    c2: TWMWindowPosChanging;
+    t: TWindowPos;
+begin
+  t.hwnd:= Handle;
+  t.x:= X;
+  t.y:= Y;
+  t.cx:= cx;
+  t.cy:= cy;
+  t.flags:= uFlags or SWP_NOZORDER or SWP_NOACTIVATE or SWP_NOREDRAW or SWP_NOCOPYBITS or SWP_NOOWNERZORDER or SWP_NOSENDCHANGING;
+  c2.WindowPos:= @t;
+  c2.Msg:= WM_WINDOWPOSCHANGING;
+  WindowProc(TMessage(c2));
+  c.WindowPos:= @t;
+  c.Msg:= WM_WINDOWPOSCHANGED;
+  WindowProc(TMessage(c));
+end;
+
 function TWinControlHelper.TranslateToChildWindows(
   var Message: TMessage): Boolean;
 begin
@@ -1075,6 +1100,16 @@ end;
 procedure TCGScene.AddToFreeContext(Value: TFreeContextEvent);
 begin
   FToFreeContextList.Add(Value);
+end;
+
+procedure TCGScene.AdjustSize;
+begin
+  if not (csLoading in ComponentState) and HandleAllocated then
+  begin
+    SetWindowPos(Handle, 0, 0, 0, Width, Height, SWP_NOACTIVATE or SWP_NOMOVE or
+      SWP_NOZORDER);
+    RequestAlign;
+  end;
 end;
 
 procedure TCGScene.CMEnabledChanged(var Message: TMessage);
@@ -1689,6 +1724,16 @@ begin
     Inc(Rect.Top, FBorder.BorderSize);
     Dec(Rect.Right, FBorder.BorderSize);
     Dec(Rect.Bottom, FBorder.BorderSize);
+  end;
+end;
+
+procedure TCGWinControl.AdjustSize;
+begin
+  if not (csLoading in ComponentState) and HandleAllocated then
+  begin
+    SetWindowPosCustom(0, 0, Width, Height, SWP_NOACTIVATE or SWP_NOMOVE or
+      SWP_NOZORDER);
+    RequestAlign;
   end;
 end;
 
@@ -2500,8 +2545,11 @@ begin
     if Framed and (Moved or Sized) then
       Invalidate;
 
-    with TMessage(Message) do
-      Result := CallWindowProc(DefWndProc, WindowHandle, Msg, WParam, LParam);
+    if ClassType = TCGScene then
+      with TMessage(Message) do
+        Result := CallWindowProc(DefWndProc, WindowHandle, Msg, WParam, LParam)
+    else
+      ProcessWMWindowPosChanged(Message);
     { Update min/max width/height to actual extents control will allow }
     if ComponentState * [csReading, csLoading] = [] then
     begin
@@ -2730,6 +2778,11 @@ end;
 function TCGFontGenerator.GetLineHeight: Integer;
 begin
   Result:= GetFontGenerator.LineHeight;
+end;
+
+function TCGFontGenerator.GetSizes(const AInfo: TTextData): TPoint;
+begin
+  Result:= GetFontGenerator.GetSizes(AInfo);
 end;
 
 procedure TCGFontGenerator.NeedRefresh(Sender: TObject);
@@ -3133,9 +3186,12 @@ end;
 
 function TTextObjectBase.CalculateSize: TPoint;
 begin
-  if FPreparedObject <> nil then
-    Result.Create(FPreparedObject.Width, FPreparedObject.Height)
-  else
+  if not IsInvalid then begin
+    if (FPreparedObject <> nil) and (FLastChanging = []) then
+      Result.Create(FPreparedObject.Width, FPreparedObject.Height)
+    else
+      Result:= FFontGenerator.GetSizes(FTextData);
+  end else
     Result.Create(0, 0);
 end;
 
@@ -3419,27 +3475,9 @@ end;
 
 procedure TControlHelper.PrivateSetBounds(ALeft, ATop, AWidth,
   AHeight: Integer);
-var m: TWMMove;
-    s: TWMSize;
 begin
   if TWinControl(Self).HandleAllocated then begin
-    if (Left <> ALeft) or (Top <> ATop) then begin
-      Self.FLeft := ALeft;
-      Self.FTop := ATop;
-      m.Msg:= WM_MOVE;
-      m.XPos:= ALeft;
-      m.YPos:= ATop;
-      WindowProc(TMessage(m));
-    end;
-    if (Width <> AWidth) or (Height <> AHeight) then begin
-      Self.FWidth := AWidth;
-      Self.FHeight := AHeight;
-      s.Msg:= WM_SIZE;
-      s.SizeType:= SIZE_RESTORED;
-      s.Width:= AWidth;
-      s.Height:= AHeight;
-      WindowProc(TMessage(s));
-    end;
+    TWinControl(Self).SetWindowPosCustom(ALeft, ATop, AWidth, AHeight, 0);
   end else begin
     Self.FLeft := ALeft;
     Self.FTop := ATop;
@@ -3454,6 +3492,35 @@ end;
 procedure TControlHelper.PrivateUpdateAnchorRules;
 begin
   Self.UpdateAnchorRules;
+end;
+
+procedure TControlHelper.ProcessWMWindowPosChanged(
+  var Message: TWMWindowPosChanged);
+var m: TWMMove;
+    s: TWMSize;
+    t: PWindowPos;
+begin
+  t:= TWMWindowPosChanged(Message).WindowPos;
+  if (t.flags and SWP_NOMOVE = 0) and
+      ((Left <> t.x) or (Top <> t.y)) then begin
+    Self.FLeft := t.x;
+    Self.FTop := t.y;
+    m.Msg:= WM_MOVE;
+    m.XPos:= t.x;
+    m.YPos:= t.y;
+    WindowProc(TMessage(m));
+  end;
+
+  if (t.flags and SWP_NOSIZE = 0) and
+      ((Width <> t.cx) or (Height <> t.cy)) then begin
+    Self.FWidth := t.cx;
+    Self.FHeight := t.cy;
+    s.Msg:= WM_SIZE;
+    s.SizeType:= SIZE_RESTORED;
+    s.Width:= t.cx;
+    s.Height:= t.cy;
+    WindowProc(TMessage(s));
+  end;
 end;
 
 { TSizeConstraintsHelper }

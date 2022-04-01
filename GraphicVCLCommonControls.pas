@@ -43,7 +43,7 @@ type
     procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
   protected
     procedure AdjustSize; override;
-    procedure EnsureTextReady;
+    function EnsureTextReady: Boolean;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
     procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat);
     procedure DesignPaint; override;
@@ -572,7 +572,7 @@ end;
 
 procedure TCGLabel.CMTextChanged(var Message: TMessage);
 begin
-  if FText <> nil then
+  if EnsureTextReady then
     FText.Text:= Caption;
   AdjustSize;
   Invalidate;
@@ -637,6 +637,7 @@ begin
 end;
 
 procedure TCGLabel.DoRender(Context: TCGContextBase; R: TRect);
+var p: TPoint;
 begin
   if (FText <> nil) and FText.IsInvalid then begin
     FText.FreeContext(Context);
@@ -645,11 +646,17 @@ begin
   EnsureTextReady;
   FText.InitContext;
   FText.Render(R.Left, R.Top);
+  if AutoSize then begin
+    p:= FText.CalculateSize;
+    if (R.Height <> p.Y) or (not WordWrap and (R.Width <> p.X)) then
+      AdjustSize;
+  end;
 end;
 
-procedure TCGLabel.EnsureTextReady;
+function TCGLabel.EnsureTextReady: Boolean;
 begin
-  if FText = nil then begin
+  Result:= FText <> nil;
+  if not Result and (FFontGenerator <> nil) then begin
     FText:= FFontGenerator.GenerateText();
     FText.Color:= Color;
     FText.Text:= Caption;
@@ -658,6 +665,7 @@ begin
     FText.WordWrap:= WordWrap;
     FText.MaxHeight:= Height;
     FText.MaxWidth:= Width;
+    Result:= True;
   end;
 end;
 
