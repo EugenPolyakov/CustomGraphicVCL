@@ -151,6 +151,7 @@ type
     property Generic2DObjectClass: TGeneric2DObjectClass read FGeneric2DObjectClass write SetGeneric2DObjectClass;
     property FontGeneratorClass: TCGFontGeneratorClass read FFontGeneratorClass write SetFontGeneratorClass;
     property LineHeight: Integer read GetLineHeight;
+    property FontGenerator: TCGFontGeneratorBase read GetFontGenerator;
   published
     property Font: TFont read FFont write SetFont;
     property CharSet: string read FCharSet write SetCharSet;
