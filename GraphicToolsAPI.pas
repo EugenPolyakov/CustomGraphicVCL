@@ -2,7 +2,8 @@ unit GraphicToolsAPI;
 
 interface
 
-uses Classes, ToolsAPI, GraphicVCLBase, GraphicVCLControls, GraphicVCLCommonControls;
+uses Classes, ToolsAPI, GraphicVCLBase, GraphicVCLControls, GraphicVCLExtension,
+  GraphicVCLCommonControls;
 
 procedure Register;
 

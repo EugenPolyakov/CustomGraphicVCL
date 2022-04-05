@@ -37,6 +37,7 @@ contains
   GraphicVCLBase in 'GraphicVCLBase.pas',
   GraphicToolsAPI in 'GraphicToolsAPI.pas',
   GraphicVCLControls in 'GraphicVCLControls.pas',
-  GraphicVCLCommonControls in 'GraphicVCLCommonControls.pas';
+  GraphicVCLCommonControls in 'GraphicVCLCommonControls.pas',
+  GraphicVCLExtension in 'GraphicVCLExtension.pas';
 
 end.

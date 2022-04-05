@@ -4,30 +4,9 @@ interface
 
 uses System.SysUtils, System.Classes, Vcl.StdCtrls, Winapi.Windows, Winapi.Messages,
   Vcl.Controls, Vcl.Graphics, GraphicVCLBase, GraphicVCLControls, Vcl.Buttons,
-  System.Generics.Collections;
+  System.Generics.Collections, GraphicVCLExtension;
 
 type
-  TControlWithFont = class (TCGControl)
-  private
-    FFontGenerator: TCGFontGenerator;
-    FParentFont: Boolean;
-    procedure CMParentFontChanged(var Message: TCMParentFontChanged); message CM_PARENTFONTCHANGED;
-    procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
-    procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
-    procedure CMFontGeneratorDestroy(var Message: TMessage); message CM_FONTGENERATORDESTROY;
-    procedure SetFontGenerator(const Value: TCGFontGenerator);
-    procedure SetParentFont(const Value: Boolean);
-  protected
-    function IsFontStored: Boolean;
-  public
-    destructor Destroy; override;
-    constructor Create(AOwner: TComponent); override;
-  published
-    property Font: TCGFontGenerator read FFontGenerator write SetFontGenerator stored IsFontStored;
-    property ParentFont: Boolean read FParentFont write SetParentFont default True;
-    property Color default clWindowText;
-  end;
-
   TCGLabel = class (TControlWithFont)
   private
     FLayout: TTextLayout;
@@ -74,53 +53,61 @@ type
     property OnMouseLeave;
   end;
 
-  TUpDownTemplate = class (TSceneComponent)
+  TCGButton = class (TControlWithFont)
   private
-    FButtonHoverUp: TContextController<TGeneric2DObject>;
-    FButtonWidth: Integer;
-    FButtonDown: TContextController<TGeneric2DObject>;
-    FButtonHoverDown: TContextController<TGeneric2DObject>;
-    FButtonUp: TContextController<TGeneric2DObject>;
-    procedure SetButtonDown(const Value: TGeneric2DObject);
-    procedure SetButtonHoverDown(const Value: TGeneric2DObject);
-    procedure SetButtonHoverUp(const Value: TGeneric2DObject);
-    procedure SetButtonUp(const Value: TGeneric2DObject);
-    procedure SetButtonWidth(const Value: Integer);
+    FText: TTextObjectBase;
+    FHoverPicture: TContextController<TCGBilboard>;
+    FPressedPicture: TContextController<TCGBilboard>;
+    FDefaultPicture: TContextController<TCGBilboard>;
+    FDisabledPicture: TContextController<TCGBilboard>;
+    FHoverDisabledPicture: TContextController<TCGBilboard>;
+    FState: TButtonState;
+    FDragging: Boolean;
+    procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
+    procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+    procedure SetDefaultPicture(const Value: TCGBilboard);
+    procedure SetDisabledPicture(const Value: TCGBilboard);
+    procedure SetHoverPicture(const Value: TCGBilboard);
+    procedure SetPressedPicture(const Value: TCGBilboard);
+    procedure SetHoverDisabledPicture(const Value: TCGBilboard);
   protected
-    procedure ContextEvent(AContext: TCGContextBase; IsInitialization: Boolean); override;
-  public
-    procedure DoRender(AContext: TCGContextBase; const R: TRect; UpHover, DownHover: Boolean);
-    destructor Destroy; override;
-    property ButtonHoverUp: TGeneric2DObject read FButtonHoverUp.Value write SetButtonHoverUp;
-    property ButtonUp: TGeneric2DObject read FButtonUp.Value write SetButtonUp;
-    property ButtonHoverDown: TGeneric2DObject read FButtonHoverDown.Value write SetButtonHoverDown;
-    property ButtonDown: TGeneric2DObject read FButtonDown.Value write SetButtonDown;
-  published
-    property ButtonWidth: Integer read FButtonWidth write SetButtonWidth;
-  end;
-
-  TControlWithInput = class (TControlWithFont)
-  private
-    FOnKeyDown: TKeyEvent;
-    FOnKeyPress: TKeyPressEvent;
-    FOnKeyUp: TKeyEvent;
-    procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
-    procedure CMEnabledChanged(var Message: TMessage); message CM_ENABLEDCHANGED;
-    procedure CMParentStateChanged(var Message: TMessage); message CM_PARENTSTATECHANGED;
-  protected
+    function EnsureTextReady: Boolean;
+    procedure DoRender(Context: TCGContextBase; R: TRect); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
-    procedure KeyDown(var Key: Word; Shift: TShiftState); override;
-    procedure KeyUp(var Key: Word; Shift: TShiftState); override;
-    procedure KeyPress(var Key: Char); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState;
+      X, Y: Integer); override;
+    procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat);
+    procedure DesignPaint; override;
   public
-    function CanFocus: Boolean;
-    function IsFocused: Boolean;
-    procedure SetFocus;
+    procedure FreeContext(Context: TCGContextBase); override;
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    property DefaultPicture: TCGBilboard read FDefaultPicture.Value write SetDefaultPicture;
+    property HoverPicture: TCGBilboard read FHoverPicture.Value write SetHoverPicture;
+    property PressedPicture: TCGBilboard read FPressedPicture.Value write SetPressedPicture;
+    property DisabledPicture: TCGBilboard read FDisabledPicture.Value write SetDisabledPicture;
+    property HoverDisabledPicture: TCGBilboard read FHoverDisabledPicture.Value write SetHoverDisabledPicture;
   published
-    property OnKeyDown: TKeyEvent read FOnKeyDown write FOnKeyDown;
-    property OnKeyPress: TKeyPressEvent read FOnKeyPress write FOnKeyPress;
-    property OnKeyUp: TKeyEvent read FOnKeyUp write FOnKeyUp;
+    property Align;
+    property Anchors;
+    property Constraints;
+    property Enabled;
+    property Text;
+    property Touch;
+    property Visible;
+    property OnClick;
+    property OnDblClick;
+    property OnGesture;
+    property OnMouseActivate;
+    property OnMouseDown;
+    property OnMouseEnter;
+    property OnMouseLeave;
+    property OnMouseMove;
+    property OnMouseUp;
   end;
 
   TCGEdit = class (TControlWithInput)
@@ -623,16 +610,13 @@ begin
     taCenter: r.Offset((Width - r.Right) div 2, 0);
   end;
 
+  Canvas.Font.Color:= Color;
   Canvas.TextRect(r, s, f);
 end;
 
 destructor TCGLabel.Destroy;
 begin
-  if (FText <> nil) and (Scene <> nil) then begin
-    Scene.AddToFreeContext(FText.FreeContextAndDestroy);
-    FText:= nil;
-  end else
-    FreeAndNil(FText);
+  FreeText(FText);
   inherited;
 end;
 
@@ -656,8 +640,8 @@ end;
 function TCGLabel.EnsureTextReady: Boolean;
 begin
   Result:= FText <> nil;
-  if not Result and (FFontGenerator <> nil) then begin
-    FText:= FFontGenerator.GenerateText();
+  if not Result and (Font<> nil) then begin
+    FText:= Font.GenerateText();
     FText.Color:= Color;
     FText.Text:= Caption;
     FText.Layout:= Layout;
@@ -788,11 +772,7 @@ end;
 
 destructor TCGEdit.Destroy;
 begin
-  if (FText <> nil) and (Scene <> nil) then begin
-    Scene.AddToFreeContext(FText.FreeContextAndDestroy);
-    FText:= nil;
-  end else
-    FreeAndNil(FText);
+  FreeText(FText);
   FSelectionBrush.UpdateValue(nil, Scene);
   FCursorBrush.UpdateValue(nil, Scene);
   inherited;
@@ -830,16 +810,16 @@ begin
         end;
         EnsureSelectionBrushReady;
         FSelectionBrush.Value.DrawWithSize(
-            TPoint.Create(R.Left + rStart.X - FTextOffset, R.Top + (R.Height - FFontGenerator.LineHeight) div 2),
-            TPoint.Create(rEnd.X - rStart.X, FFontGenerator.LineHeight));
+            TPoint.Create(R.Left + rStart.X - FTextOffset, R.Top + (R.Height - Font.LineHeight) div 2),
+            TPoint.Create(rEnd.X - rStart.X, Font.LineHeight));
       end;
     end else if IsFocused then begin
       if FCursorBrush.Value = nil then
         FCursorBrush.UpdateValue(GetSolidBrush(Color), Scene);
       FCursorBrush.InitializeContext;
       FCursorBrush.Value.DrawWithSize(
-          TPoint.Create(R.Left + FSelStart.X - FTextOffset, R.Top + (R.Height - FFontGenerator.LineHeight) div 2),
-          TPoint.Create(2, FFontGenerator.LineHeight));
+          TPoint.Create(R.Left + FSelStart.X - FTextOffset, R.Top + (R.Height - Font.LineHeight) div 2),
+          TPoint.Create(2, Font.LineHeight));
     end;
     FText.InitContext;
     FText.Render(R.Left - FTextOffset, R.Top);
@@ -858,8 +838,8 @@ end;
 function TCGEdit.EnsureTextReady: Boolean;
 begin
   Result:= FText <> nil;
-  if not Result and (FFontGenerator <> nil) then begin
-    FText:= FFontGenerator.GenerateText();
+  if not Result and (Font <> nil) then begin
+    FText:= Font.GenerateText();
     FText.Color:= Color;
     FText.Text:= Caption;
     FText.Layout:= tlCenter;
@@ -985,7 +965,7 @@ begin
   if not (csDesigning in ComponentState) and not (ssDouble in Shift) then begin
     if Text <> '' then begin
       EnsureTextReady;
-      p:= FText.GetCursorPosition(X + FTextOffset, Y + (Height - FFontGenerator.LineHeight) div 2);
+      p:= FText.GetCursorPosition(X + FTextOffset, Y + (Height - Font.LineHeight) div 2);
       if ssShift in Shift then begin
         old:= FSelEnd;
         FSelEnd:= p;
@@ -1012,7 +992,7 @@ begin
   inherited MouseMove(Shift, X, Y);
   if ssLeft in Shift then begin
     EnsureTextReady;
-    p:= FText.GetCursorPosition(X + FTextOffset, Y + (Height - FFontGenerator.LineHeight) div 2);
+    p:= FText.GetCursorPosition(X + FTextOffset, Y + (Height - Font.LineHeight) div 2);
     old:= FSelEnd;
     FSelEnd:= p;
     if old <> p then
@@ -1085,152 +1065,6 @@ begin
     FText.MaxWidth:= Width;
   end;}
   Invalidate;
-end;
-
-{ TControlWithFont }
-
-procedure TControlWithFont.CMColorChanged(var Message: TMessage);
-begin
-  Invalidate;
-end;
-
-procedure TControlWithFont.CMFontGeneratorChanged(var Message: TMessage);
-begin
-  if (csDesigning in ComponentState) and (Font <> nil) then
-    THackControl(Self).Font:= Font.Font;
-  if (Parent <> nil) and (FFontGenerator <> TCGWinControl(Parent).Font) then
-    ParentFont:= False;
-  Invalidate;
-end;
-
-procedure TControlWithFont.CMFontGeneratorDestroy(var Message: TMessage);
-begin
-  inherited;
-  Font:= nil;
-end;
-
-procedure TControlWithFont.CMParentFontChanged(
-  var Message: TCMParentFontChanged);
-begin
-  if FParentFont then
-    if Parent is TCGWinControl then
-      Font:= TCGWinControl(Parent).Font
-    else if Scene <> nil then
-      Font:= Scene.Font;
-end;
-
-constructor TControlWithFont.Create(AOwner: TComponent);
-begin
-  inherited;
-  FParentFont:= True;
-  Color:= clWindowText;
-end;
-
-destructor TControlWithFont.Destroy;
-begin
-  Font:= nil;
-  inherited;
-end;
-
-function TControlWithFont.IsFontStored: Boolean;
-begin
-  Result:= not ParentFont and (Font <> nil);
-end;
-
-procedure TControlWithFont.SetFontGenerator(const Value: TCGFontGenerator);
-begin
-  if FFontGenerator <> Value then begin
-    if FFontGenerator <> nil then
-      FFontGenerator.UnSubscribeOnChange(Self);
-
-    FFontGenerator:= Value;
-    if FFontGenerator <> nil then
-      FFontGenerator.SubscribeOnChange(Self);
-
-    Perform(CM_FONTGENERATORCHANGED, 0, 0);
-  end;
-end;
-
-procedure TControlWithFont.SetParentFont(const Value: Boolean);
-begin
-  FParentFont := Value;
-  if FParentFont and (Parent <> nil) then begin
-    Font:= TCGWinControl(Parent).Font;
-    Invalidate;
-  end;
-end;
-
-{ TUpDownTemplate }
-
-procedure TUpDownTemplate.ContextEvent(AContext: TCGContextBase;
-  IsInitialization: Boolean);
-begin
-  inherited;
-  if not IsInitialization then begin
-    FButtonHoverUp.FreeContext(AContext);
-    FButtonDown.FreeContext(AContext);
-    FButtonHoverDown.FreeContext(AContext);
-    FButtonUp.FreeContext(AContext);
-  end;
-end;
-
-destructor TUpDownTemplate.Destroy;
-begin
-  FButtonHoverUp.UpdateValue(nil, Scene);
-  FButtonDown.UpdateValue(nil, Scene);
-  FButtonHoverDown.UpdateValue(nil, Scene);
-  FButtonUp.UpdateValue(nil, Scene);
-  inherited;
-end;
-
-procedure TUpDownTemplate.DoRender(AContext: TCGContextBase; const R: TRect;
-  UpHover, DownHover: Boolean);
-var p, s: TPoint;
-begin
-  p:= R.TopLeft;
-  s.Create(ButtonWidth, R.Height div 2);
-  if UpHover then begin
-    FButtonHoverUp.InitializeContext;
-    FButtonHoverUp.Value.DrawWithSize(p, s);
-  end else begin
-    FButtonUp.InitializeContext;
-    FButtonUp.Value.DrawWithSize(p, s);
-  end;
-
-  p.Y:= p.Y + s.Y;
-  s.Y:= R.Height - s.Y;
-  if DownHover then begin
-    FButtonHoverDown.InitializeContext;
-    FButtonHoverDown.Value.DrawWithSize(p, s);
-  end else begin
-    FButtonDown.InitializeContext;
-    FButtonDown.Value.DrawWithSize(p, s);
-  end;
-end;
-
-procedure TUpDownTemplate.SetButtonDown(const Value: TGeneric2DObject);
-begin
-  FButtonDown.UpdateValue(Value, Scene);
-end;
-
-procedure TUpDownTemplate.SetButtonHoverDown(const Value: TGeneric2DObject);
-begin
-  FButtonHoverDown.UpdateValue(Value, Scene);
-end;
-
-procedure TUpDownTemplate.SetButtonHoverUp(const Value: TGeneric2DObject);
-begin
-  FButtonHoverUp.UpdateValue(Value, Scene);
-end;
-
-procedure TUpDownTemplate.SetButtonUp(const Value: TGeneric2DObject);
-begin
-  FButtonUp.UpdateValue(Value, Scene);
-end;
-
-procedure TUpDownTemplate.SetButtonWidth(const Value: Integer);
-begin
-  FButtonWidth:= Value;
 end;
 
 { TCGSpinEdit }
@@ -1395,96 +1229,6 @@ begin
     FSelEnd:= FText.GetCursorPosition(Length(Text));
     FSelStart:= FText.GetCursorPosition(0);
   end;
-end;
-
-{ TControlWithInput }
-
-function TControlWithInput.CanFocus: Boolean;
-var Control, S: TWinControl;
-begin
-  Result:= False;
-  S:= Scene;
-  if S <> nil then begin
-    Control := Self.Parent;
-    while Control <> S do
-    begin
-      if not (Control.Visible and Control.Enabled) then Exit;
-      Control := Control.Parent;
-    end;
-    Result:= True;
-  end;
-end;
-
-procedure TControlWithInput.CMEnabledChanged(var Message: TMessage);
-begin
-  if not Enabled and (Scene <> nil) and (Scene.KeyControl = Self) then
-    Scene.KeyControl:= nil;
-  inherited;
-end;
-
-procedure TControlWithInput.CMParentStateChanged(var Message: TMessage);
-var w: TWinControl;
-begin
-  if (Scene <> nil) and (Scene.KeyControl = Self) then begin
-    w:= Parent;
-    while w <> Scene do begin
-      if not w.Visible or not w.Enabled then begin
-        Scene.KeyControl:= nil;
-        Break;
-      end;
-      w:= w.Parent;
-    end;
-  end;
-end;
-
-procedure TControlWithInput.CMVisibleChanged(var Message: TMessage);
-begin
-  if not Visible and (Scene <> nil) and (Scene.KeyControl = Self) then
-    Scene.KeyControl:= nil;
-  inherited;
-end;
-
-function TControlWithInput.IsFocused: Boolean;
-begin
-  Result:= False;
-  if Scene <> nil then
-    Result:= Scene.KeyControl = Self;
-end;
-
-procedure TControlWithInput.KeyDown(var Key: Word; Shift: TShiftState);
-begin
-  inherited;
-  if Assigned(FOnKeyDown) then
-    FOnKeyDown(Self, Key, Shift);
-end;
-
-procedure TControlWithInput.KeyPress(var Key: Char);
-begin
-  inherited;
-  if Assigned(FOnKeyPress) then
-    FOnKeyPress(Self, Key);
-end;
-
-procedure TControlWithInput.KeyUp(var Key: Word; Shift: TShiftState);
-begin
-  inherited;
-  if Assigned(FOnKeyUp) then
-    FOnKeyUp(Self, Key, Shift);
-end;
-
-procedure TControlWithInput.MouseDown(Button: TMouseButton; Shift: TShiftState;
-  X, Y: Integer);
-begin
-  inherited MouseDown(Button, Shift, X, Y);
-  if not (csDesigning in ComponentState) then
-    if Scene <> nil then
-      Scene.KeyControl:= Self;
-end;
-
-procedure TControlWithInput.SetFocus;
-begin
-  if CanFocus then
-    Scene.KeyControl:= Self;
 end;
 
 { TColoredLabel }
@@ -2699,6 +2443,235 @@ begin
     for i := 0 to TCGListBoxStrings(FItems).FLines.Count - 1 do
       TCGListBoxStrings(FItems).FLines[i].Text.WordWrap:= FWordWrap;
   end;
+end;
+
+{ TCGButton }
+
+procedure TCGButton.CMColorChanged(var Message: TMessage);
+begin
+  if FText <> nil then
+    FText.Color:= Color;
+  Invalidate;
+end;
+
+procedure TCGButton.CMMouseEnter(var Message: TMessage);
+begin
+  inherited;
+  if not FDragging then
+    FState:= bsExclusive
+  else
+    FState:= bsDown;
+  Invalidate;
+end;
+
+procedure TCGButton.CMMouseLeave(var Message: TMessage);
+begin
+  inherited;
+  FState:= bsUp;
+  Invalidate;
+end;
+
+procedure TCGButton.CMTextChanged(var Message: TMessage);
+begin
+  if EnsureTextReady then
+    FText.Text:= Caption;
+  AdjustSize;
+  Invalidate;
+end;
+
+constructor TCGButton.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  ControlStyle := [csCaptureMouse];
+end;
+
+procedure TCGButton.DesignCalcRect(var R: TRect; var Flags: TTextFormat);
+var s: string;
+begin
+  s:= Caption;
+  R:= ClientRect;
+  Canvas.Font:= THackControl(Self).Font;
+  Flags:= [tfCalcRect];
+  //if WordWrap then
+  Include(Flags, tfWordBreak);
+  //case Alignment of
+  //  taLeftJustify: Include(Flags, tfLeft);
+  //  taRightJustify: Include(Flags, tfRight);
+  {  taCenter:} Include(Flags, tfCenter);
+  //end;
+  Canvas.TextRect(r, s, Flags);
+  Exclude(Flags, tfCalcRect);
+end;
+
+procedure TCGButton.DesignPaint;
+var s: string;
+    r: TRect;
+    f: TTextFormat;
+begin
+  inherited;
+  s:= Caption;
+  DesignCalcRect(r, f);
+
+  r.Offset(0, (Height - r.Bottom) div 2);
+  r.Offset((Width - r.Right) div 2, 0);
+
+  Canvas.Font.Color:= Color;
+  Canvas.TextRect(r, s, f);
+end;
+
+destructor TCGButton.Destroy;
+begin
+  FHoverPicture.UpdateValue(nil, Scene);
+  FPressedPicture.UpdateValue(nil, Scene);
+  FDefaultPicture.UpdateValue(nil, Scene);
+  FDisabledPicture.UpdateValue(nil, Scene);
+  FHoverDisabledPicture.UpdateValue(nil, Scene);
+  FreeText(FText);
+  inherited;
+end;
+
+procedure TCGButton.DoRender(Context: TCGContextBase; R: TRect);
+var t: TRect;
+    p: ^TContextController<TCGBilboard>;
+    s: TPoint;
+begin
+  p:= nil;
+  case FState of
+    bsUp: begin
+        if not Enabled then
+          p:= @FDisabledPicture;
+        if Enabled or (p.Value = nil) then
+          p:= @FDefaultPicture;
+      end;
+    bsDown: begin
+        p:= @FPressedPicture;
+        if p.Value = nil then
+          p:= @FDefaultPicture;
+      end;
+    bsExclusive: begin
+        p:= @FHoverPicture;
+        if not Enabled then
+          p:= @FHoverDisabledPicture;
+        if p.Value = nil then
+          p:= @FDefaultPicture;
+      end;
+  end;
+
+  if (p <> nil) and (p.Value <> nil) then begin
+    p.InitializeContext;
+    t.Create(0, 0, p.Value.Width, p.Value.Height);
+    p.Value.DrawBilboard(R, t);
+  end;
+
+  if (FText <> nil) and FText.IsInvalid then begin
+    FText.FreeContext(Context);
+    FreeAndNil(FText);
+  end;
+  EnsureTextReady;
+  FText.InitContext;
+  s:= FText.CalculateSize;
+  FText.Render(R.Left, R.Top);
+end;
+
+function TCGButton.EnsureTextReady: Boolean;
+begin
+  Result:= FText <> nil;
+  if not Result and (Font<> nil) then begin
+    FText:= Font.GenerateText();
+    FText.Color:= Color;
+    FText.Text:= Caption;
+    FText.Layout:= tlCenter;
+    FText.Alignment:= taCenter;
+    FText.WordWrap:= True;
+    FText.MaxHeight:= Height;
+    FText.MaxWidth:= Width;
+    Result:= True;
+  end;
+end;
+
+procedure TCGButton.FreeContext(Context: TCGContextBase);
+begin
+  inherited;
+  FHoverPicture.FreeContext(Context);
+  FPressedPicture.FreeContext(Context);
+  FDefaultPicture.FreeContext(Context);
+  FDisabledPicture.FreeContext(Context);
+  FHoverDisabledPicture.FreeContext(Context);
+  if FText <> nil then
+    FText.FreeContext(Context);
+end;
+
+procedure TCGButton.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  inherited MouseDown(Button, Shift, X, Y);
+  if (Button = mbLeft) and Enabled then
+  begin
+    MouseCapture:= True;
+    FState := bsDown;
+    Invalidate;
+    FDragging := True;
+  end;
+end;
+
+procedure TCGButton.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  NewState: TButtonState;
+begin
+  inherited MouseMove(Shift, X, Y);
+  if FDragging then
+  begin
+    NewState := bsUp;
+    if (X >= 0) and (X < ClientWidth) and (Y >= 0) and (Y <= ClientHeight) then
+      NewState := bsDown;
+    if NewState <> FState then
+    begin
+      FState := NewState;
+      Invalidate;
+    end;
+  end;
+end;
+
+procedure TCGButton.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+var
+  DoClick: Boolean;
+begin
+  inherited MouseUp(Button, Shift, X, Y);
+  if FDragging then
+  begin
+    MouseCapture:= False;
+    FDragging := False;
+    DoClick := (X >= 0) and (X < ClientWidth) and (Y >= 0) and (Y <= ClientHeight);
+    FState := bsUp;
+    Invalidate;
+    if DoClick then Click;
+  end;
+end;
+
+procedure TCGButton.SetDefaultPicture(const Value: TCGBilboard);
+begin
+  FDefaultPicture.UpdateValue(Value, Scene);
+end;
+
+procedure TCGButton.SetDisabledPicture(const Value: TCGBilboard);
+begin
+  FDisabledPicture.UpdateValue(Value, Scene);
+end;
+
+procedure TCGButton.SetHoverDisabledPicture(const Value: TCGBilboard);
+begin
+  FHoverDisabledPicture.UpdateValue(Value, Scene);
+end;
+
+procedure TCGButton.SetHoverPicture(const Value: TCGBilboard);
+begin
+  FHoverPicture.UpdateValue(Value, Scene);
+end;
+
+procedure TCGButton.SetPressedPicture(const Value: TCGBilboard);
+begin
+  FPressedPicture.UpdateValue(Value, Scene);
 end;
 
 end.
