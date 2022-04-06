@@ -1532,11 +1532,15 @@ begin
 end;
 
 procedure TCGStringGrid.Exchange(A, B: Integer);
+var tmp: Integer;
 begin
   if (A < 0) or (B < 0) or (A >= FCells.Count) or (B >= FCells.Count) then
     Exit;
 
   FCells.Exchange(A, B);
+  tmp:= FRowData[A];
+  FRowData[A]:= FRowData[B];
+  FRowData[B]:= tmp;
   Invalidate;
 end;
 
