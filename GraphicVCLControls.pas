@@ -632,7 +632,6 @@ type
     procedure ValidateParent(AParent: TWinControl); override;
   public
     procedure GetChildren(Proc: TGetChildProc; Root: TComponent); override;
-    procedure FreeContext(Context: TCGContextBase); override;
     procedure FreeContextAndDestroy(Context: TCGContextBase);
     constructor Create(AOwner: TComponent); override;
     procedure Render(Context: TCGContextBase); override;
@@ -3191,14 +3190,6 @@ begin
       FOnCreateContext(Self);
   end else
     FreeContext(AContext);
-end;
-
-procedure TCGFrame.FreeContext(Context: TCGContextBase);
-begin
-  if Assigned(FOnFreeContext) then
-    FOnFreeContext(Self);
-
-  inherited FreeContext(Context);
 end;
 
 procedure TCGFrame.FreeContextAndDestroy(Context: TCGContextBase);
