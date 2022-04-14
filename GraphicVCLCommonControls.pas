@@ -392,7 +392,6 @@ type
     FBackground: TContextController<TGeneric2DObject>;
     FHeaderBackground: TContextController<TGeneric2DObject>;
     FHoverBackground: TContextController<TGeneric2DObject>;
-    FScrollBars: THVScrolls;
     FDefaultColWidth: Integer;
     FColCount: Integer;
     FLayout: TTextLayout;
@@ -1484,7 +1483,7 @@ begin
     Dec(tl.Y, FScrollBars.Vertical.ScrollOffset);
     Inc(Z.Top, FScrollBars.Vertical.ScrollOffset);
     i:= 0;
-    while (tl.Y + FRowHeights[i] <= R.Top) and (i < FRowCount) do begin
+    while (i < FRowCount) and (tl.Y + FRowHeights[i] <= R.Top) do begin
       Dec(Z.Top, FRowHeights[i]);
       Inc(tl.Y, FRowHeights[i]);
       Inc(i);
@@ -1630,7 +1629,7 @@ begin
   Inc(R.Top, HeaderHeight);
   if R.Contains(Point(X, Y)) then begin
     i:= 0;
-    while (FRowHeights[i] + h < R.Top) and (i < FRowCount) do begin
+    while (i < FRowCount) and (FRowHeights[i] + h < R.Top) do begin
       Inc(h, FRowHeights[i]);
       Inc(i);
     end;
