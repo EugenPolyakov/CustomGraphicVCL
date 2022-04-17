@@ -1593,7 +1593,7 @@ function TCGStringGrid.GetHeaderCell(X, Y: Integer): Integer;
 var i, w: Integer;
 begin
   if Y < FHeaderHeight then begin
-    w:= -FScrollBars.Vertical.ScrollOffset;
+    w:= -FScrollBars.Horizontal.ScrollOffset;
     for I := 0 to ColCount - 1 do begin
       if (X >= w) and (X < w + FColWidths[i]) then
         Exit(I);
