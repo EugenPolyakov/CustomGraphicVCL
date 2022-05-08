@@ -1784,8 +1784,11 @@ end;
 
 procedure TCGWinControl.CMParentFontChanged(var Message: TCMParentFontChanged);
 begin
-  if (Scene <> nil) and ParentFont then
-    ChangeFontGenerator(Scene.Font);
+  if ParentFont then
+    if Parent is TCGWinControl then
+      ChangeFontGenerator(TCGWinControl(Parent).Font)
+    else if Scene <> nil then
+      ChangeFontGenerator(Scene.Font);
 end;
 
 procedure TCGWinControl.CMParentStateChanged(var Message: TMessage);
@@ -2117,10 +2120,8 @@ begin
   P:= Parent;
   S:= Scene;
   Result.Create(Left, Top);
-  while (P <> nil) and (P <> S) do begin
+  if S <> P then
     Result:= Result + TCGWinControl(P).GetClientOffset;
-    P:= P.Parent;
-  end;
 end;
 
 function TCGWinControl.GetClientOrigin: TPoint;
