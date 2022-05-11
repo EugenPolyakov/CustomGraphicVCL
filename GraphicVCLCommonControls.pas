@@ -411,6 +411,7 @@ type
     FCells: TList<TList<TTextObjectBase>>;
     FColWidths: array of Integer;
     FActiveLine: Integer;
+    FAutoScroll: Boolean;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
@@ -438,6 +439,7 @@ type
     procedure SetHeaderAlignment(const Value: TAlignment);
     procedure SetHeaderLayout(const Value: TTextLayout);
     procedure SetHeaderWordWrap(const Value: Boolean);
+    procedure SetAutoScroll(const Value: Boolean);
   protected
     function GetScrollRect: TRect; override;
     procedure PrepareRows;
@@ -448,6 +450,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure OnScroll(const Scroll: TScrollBarStatus); override;
   public
     procedure FreeContext(Context: TCGContextBase); override;
     destructor Destroy; override;
@@ -461,6 +464,7 @@ type
     property RowData[Index: Integer]: Integer read GetRowData write SetRowData;
     property ColWidths[Index: Integer]: Integer read GetColWidths write SetColWidths;
   published
+    property AutoScroll: Boolean read FAutoScroll write SetAutoScroll;
     property OnGetDrawCellParameters: TGetDrawCellParameters read FOnGetDrawCellParameters write FOnGetDrawCellParameters;
     property HeaderLayout: TTextLayout read FHeaderLayout write SetHeaderLayout default tlTop;
     property HeaderWordWrap: Boolean read FHeaderWordWrap write SetHeaderWordWrap default False;
@@ -1480,6 +1484,10 @@ begin
 
     Inc(R.Top, HeaderHeight);
     tl:= R.TopLeft;
+
+    if FAutoScroll then
+      FScrollBars.DoVericalOffset(-FScrollBars.Vertical.ScrollLength);
+
     Dec(tl.Y, FScrollBars.Vertical.ScrollOffset);
     Inc(Z.Top, FScrollBars.Vertical.ScrollOffset);
     i:= 0;
@@ -1684,6 +1692,11 @@ begin
     Invalidate;
 end;
 
+procedure TCGStringGrid.OnScroll(const Scroll: TScrollBarStatus);
+begin
+  FAutoScroll:= FScrollBars.Vertical.ScrollOffset = FScrollBars.Vertical.ScrollLength;
+end;
+
 procedure TCGStringGrid.PrepareRows;
 var i, j: Integer;
     l: TList<TTextObjectBase>;
@@ -1732,6 +1745,14 @@ begin
     end;
   end;
   Invalidate;
+end;
+
+procedure TCGStringGrid.SetAutoScroll(const Value: Boolean);
+begin
+  if FAutoScroll <> Value then begin
+    FAutoScroll := Value;
+    Invalidate;
+  end;
 end;
 
 procedure TCGStringGrid.SetBackground(const Value: TGeneric2DObject);
