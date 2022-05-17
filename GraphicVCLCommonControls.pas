@@ -1032,8 +1032,10 @@ begin
       FSelStart:= FSelEnd;
     if Value = 0 then
       FSelEnd:= FSelStart
-    else
+    else begin
+      EnsureTextReady;
       FSelEnd:= FText.GetCursorPosition(FSelStart.SymbolPosition + Value);
+    end;
     Invalidate;
   end;
 end;
@@ -1044,6 +1046,7 @@ begin
   oldStart:= SelStart;
   if Value <> oldStart then begin
     oldLength:= SelLength;
+    EnsureTextReady;
     FSelStart:= FText.GetCursorPosition(Value);
     if oldLength = 0 then
       FSelEnd:= FSelStart
