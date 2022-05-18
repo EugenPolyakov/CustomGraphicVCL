@@ -227,7 +227,6 @@ type
     procedure WMLButtonDblClk(var Message: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
   protected
     FScrollBars: THVScrolls;
-    procedure DblClick; override;
     function GetScrollRect: TRect; virtual;
     procedure BeginReAlignScrolls;
     procedure EndReAlignScrolls;
