@@ -220,6 +220,7 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer);
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    function MouseInScrollArea(X, Y: Integer): Boolean;
     procedure RepeatTimer;
   end;
 
@@ -240,6 +241,7 @@ type
     procedure DoHorizontalOffset(Offset: Integer);
     procedure RepeatTimer;
     procedure AdjustClientRect(var R: TRect);
+    function MouseInScrollArea(X, Y: Integer): Boolean;
     function Offset: TPoint; inline;
     property OnScrollOffsetChanged: TOnScrollOffsetChanged write SetOnScrollOffsetChanged;
   end;
@@ -3955,6 +3957,8 @@ begin
         TPoint.Create(Bounds.Width, Bounds.Height));
   end;
 
+  button:= nil;
+
   for i := ElementState[sbeUp] downto Low(TScrollBarState) do begin
     button:= @Template.FButtonUp[i];
     if button.Value <> nil then
@@ -4104,10 +4108,18 @@ begin
   Result:= False;
 end;
 
+function TScrollBarStatus.MouseInScrollArea(X, Y: Integer): Boolean;
+begin
+  if (X < Bounds.Left) or (Y < Bounds.Top) or (X >= Bounds.Right) or
+      (Y >= Bounds.Bottom) then
+    Exit(False);
+  Result:= True;
+end;
+
 procedure TScrollBarStatus.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   i: TScrollBarElement;
-  l, last: Integer;
+  l: Integer;
   ofs: Integer;
 begin
   for i := Low(TScrollBarElement) to High(TScrollBarElement) do
@@ -4272,6 +4284,17 @@ begin
 
   if not Result and Vertical.Enabled then
     Result:= Vertical.MouseDown(Button, Shift, X, Y);
+end;
+
+function THVScrolls.MouseInScrollArea(X, Y: Integer): Boolean;
+begin
+  Result:= False;
+
+  if Horizontal.Enabled then
+    Result:= Horizontal.MouseInScrollArea(X, Y);
+
+  if Vertical.Enabled then
+    Result:= Result or Vertical.MouseInScrollArea(X, Y);
 end;
 
 procedure THVScrolls.MouseMove(Shift: TShiftState; X, Y: Integer);

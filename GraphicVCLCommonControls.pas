@@ -219,12 +219,15 @@ type
     FActualHeight: Integer;
     FScrollRealignCount: Integer;
     FScrollRealignNeeded: Boolean;
+    procedure CMRepeatTimer(var Message: TMessage); message CM_REPEATTIMER;
     procedure SetActualHeight(const Value: Integer);
     procedure SetActualWidth(const Value: Integer);
     procedure SetHorizontalScrollBar(const Value: TCGScrollBarTemplate);
     procedure SetVerticalScrollBar(const Value: TCGScrollBarTemplate);
+    procedure WMLButtonDblClk(var Message: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
   protected
     FScrollBars: THVScrolls;
+    procedure DblClick; override;
     function GetScrollRect: TRect; virtual;
     procedure BeginReAlignScrolls;
     procedure EndReAlignScrolls;
@@ -1990,6 +1993,12 @@ begin
   Inc(FScrollRealignCount);
 end;
 
+procedure TScrolledWithFont.CMRepeatTimer(var Message: TMessage);
+begin
+  inherited;
+  FScrollBars.RepeatTimer;
+end;
+
 constructor TScrolledWithFont.Create(AOwner: TComponent);
 var t: TOnScrollOffsetChanged;
 begin
@@ -2097,6 +2106,26 @@ begin
   end;
 end;
 
+procedure TScrolledWithFont.WMLButtonDblClk(var Message: TWMLButtonDblClk);
+var p: TPoint;
+    old: TControlStyle;
+begin
+  with Message do
+    if (Width > 32768) or (Height > 32768) then
+      with CalcCursorPos do
+       p.Create(X, Y)
+    else
+      p.Create(XPos, YPos);
+  old:= ControlStyle;
+  try
+    if FScrollBars.MouseInScrollArea(p.X, p.Y) then
+      ControlStyle:= ControlStyle - [csClickEvents];
+    inherited;
+  finally
+    ControlStyle:= old;
+  end;
+end;
+
 { TCGListBox }
 
 procedure TCGListBox.Clear;
@@ -2169,15 +2198,14 @@ begin
     curHeight:= R.Top - FScrollBars.Vertical.ScrollOffset;
     for i := 0 to FItems.Count - 1 do begin
       TCGListBoxStrings(FItems).FLines[i].Text.InitContext;
-      p:= TCGListBoxStrings(FItems).FLines[i].Text.CalculateSize;
-      if curHeight + p.Y > R.Top then begin
+      if curHeight + Font.LineHeight > R.Top then begin
         if (i = FItemIndex) and (FSelectionBackground.Value <> nil) then begin
           FSelectionBackground.InitializeContext;
           FSelectionBackground.Value.DrawWithSize(Point(R.Left, curHeight), Point(R.Width, Font.LineHeight));
         end;
         TCGListBoxStrings(FItems).FLines[i].Text.Render(R.Left, curHeight);
       end;
-      Inc(curHeight, p.Y);
+      Inc(curHeight, Font.LineHeight);
       if curHeight > R.Bottom then
         Break;
     end;
@@ -2219,8 +2247,9 @@ end;
 procedure TCGListBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
-  if Button = mbLeft then
-    ItemIndex:= (FScrollBars.Vertical.ScrollOffset + Y) div Font.LineHeight;
+  if not FScrollBars.MouseInScrollArea(X, Y) then
+    if Button = mbLeft then
+      ItemIndex:= (FScrollBars.Vertical.ScrollOffset + Y) div Font.LineHeight;
   inherited;
 end;
 
