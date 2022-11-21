@@ -124,6 +124,12 @@ type
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
+
+    procedure WMCopy(var Message: TWMCopy); message WM_COPY;
+    procedure WMClear(var Message: TWMClear); message WM_CLEAR;
+    procedure WMCut(var Message: TWMCut); message WM_CUT;
+    procedure WMPaste(var Message: TWMPaste); message WM_PASTE;
+
     function GetSelLength: Integer;
     function GetSelStart: Integer;
     function GetSelText: string;
@@ -310,6 +316,10 @@ type
     function GetItemIndex: Integer;
     procedure SetItemIndex(const Value: Integer);
     procedure SetSelectionBackground(const Value: TGeneric2DObject);
+
+    procedure WMCopy(var Message: TWMCopy); message WM_COPY;
+    procedure WMClear(var Message: TWMClear); message WM_CLEAR;
+    procedure WMCut(var Message: TWMCut); message WM_CUT;
   protected
     procedure DoChangeItemIndex;
     procedure DoRealign; override;
@@ -502,7 +512,7 @@ type
 implementation
 
 uses
-  System.Math;
+  System.Math, Vcl.Clipbrd;
 
 type
   THackControl = class (TControl);
@@ -876,7 +886,7 @@ end;
 
 function TCGEdit.GetSelText: string;
 begin
-  Result:= Copy(Text, SelStart, SelLength);
+  Result:= Copy(Text, SelStart + 1, SelLength);
 end;
 
 procedure TCGEdit.KeyDown(var Key: Word; Shift: TShiftState);
@@ -1062,8 +1072,58 @@ procedure TCGEdit.SetSelText(const Value: string);
 var oldLength: Integer;
 begin
   oldLength:= SelLength;
-  Text:= Copy(Text, 1, SelStart - 1) + Value + Copy(Text, SelStart + oldLength);
+  Text:= Copy(Text, 1, SelStart) + Value + Copy(Text, SelStart + 1 + oldLength);
   SelLength:= 0;
+  SelStart:= SelStart + Length(Value);
+end;
+
+procedure TCGEdit.WMClear(var Message: TWMClear);
+begin
+  SelText:= '';
+end;
+
+procedure TCGEdit.WMCopy(var Message: TWMCopy);
+var s: string;
+    clip: TClipboard;
+begin
+  s:= SelText;
+  if s <> '' then begin
+    clip:= TClipboard.Create;
+    try
+      clip.AsText:= s;
+    finally
+      clip.Free;
+    end;
+  end;
+end;
+
+procedure TCGEdit.WMCut(var Message: TWMCut);
+var s: string;
+    clip: TClipboard;
+begin
+  s:= SelText;
+  if s <> '' then begin
+    clip:= TClipboard.Create;
+    try
+      clip.AsText:= s;
+    finally
+      clip.Free;
+    end;
+    SelText:= '';
+  end;
+end;
+
+procedure TCGEdit.WMPaste(var Message: TWMPaste);
+var s: string;
+    clip: TClipboard;
+begin
+  clip:= TClipboard.Create;
+  try
+    s:= clip.AsText;
+    SelText:= s;
+  finally
+    clip.Free;
+  end;
 end;
 
 procedure TCGEdit.WMWindowPosChanged(var Message: TWMWindowPosChanged);
@@ -2267,6 +2327,33 @@ end;
 procedure TCGListBox.SetSelectionBackground(const Value: TGeneric2DObject);
 begin
   FSelectionBackground.UpdateValue(Value, Scene);
+end;
+
+procedure TCGListBox.WMClear(var Message: TWMClear);
+begin
+  ItemIndex:= -1;
+end;
+
+procedure TCGListBox.WMCopy(var Message: TWMCopy);
+var s: string;
+    clip: TClipboard;
+begin
+  if ItemIndex <> -1 then begin
+    s:= Items[ItemIndex];
+    if s <> '' then begin
+      clip:= TClipboard.Create;
+      try
+        clip.AsText:= s;
+      finally
+        clip.Free;
+      end;
+    end;
+  end;
+end;
+
+procedure TCGListBox.WMCut(var Message: TWMCut);
+begin
+  WMCopy(Message);
 end;
 
 { TCGListBoxStrings }

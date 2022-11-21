@@ -305,6 +305,12 @@ type
     procedure WMSize(var Message: TWMSize); message WM_SIZE;
     procedure WMMove(var Message: TWMMove); message WM_MOVE;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
+
+    procedure WMCopy(var Message: TWMCopy); message WM_COPY;
+    procedure WMClear(var Message: TWMClear); message WM_CLEAR;
+    procedure WMCut(var Message: TWMCut); message WM_CUT;
+    procedure WMPaste(var Message: TWMPaste); message WM_PASTE;
+
     procedure CMMouseWheel(var Message: TCMMouseWheel); message CM_MOUSEWHEEL;
     procedure CNKeyDown(var Message: TWMKeyDown); message CN_KEYDOWN;
     procedure CNKeyUp(var Message: TWMKeyUp); message CN_KEYUP;
@@ -430,6 +436,11 @@ type
     procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
     procedure CMEnabledChanged(var Message: TMessage); message CM_ENABLEDCHANGED;
+
+    procedure WMCopy(var Message: TWMCopy); message WM_COPY;
+    procedure WMClear(var Message: TWMClear); message WM_CLEAR;
+    procedure WMCut(var Message: TWMCut); message WM_CUT;
+    procedure WMPaste(var Message: TWMPaste); message WM_PASTE;
 
     procedure WMSize(var Message: TWMSize); message WM_SIZE;
     procedure WMDestroy(var Message: TWMDestroy); message WM_DESTROY;
@@ -1285,6 +1296,19 @@ procedure TCGScene.KeyDown(var Key: Word; Shift: TShiftState);
 begin
   if KeyControl <> nil then begin
     KeyControl.KeyDown(Key, Shift);
+    if Shift = [ssCtrl] then begin
+      if (Key = Ord('C')) or (Key = VK_INSERT) then
+        Perform(WM_COPY, 0, 0)
+      else if Key = Ord('V') then
+        Perform(WM_PASTE, 0, 0)
+      else if Key = Ord('X') then
+        Perform(WM_CUT, 0, 0)
+    end else if Shift = [ssShift] then begin
+      if Key = VK_INSERT then
+        Perform(WM_PASTE, 0, 0)
+      else if Key = VK_DELETE then
+        Perform(WM_CUT, 0, 0);
+    end;
     Exit;
   end;
   inherited KeyDown(Key, Shift);
@@ -1386,6 +1410,24 @@ begin
   //do nothing
 end;
 
+procedure TCGScene.WMClear(var Message: TWMClear);
+begin
+  if KeyControl <> nil then
+    KeyControl.Perform(WM_CLEAR, 0, 0);
+end;
+
+procedure TCGScene.WMCopy(var Message: TWMCopy);
+begin
+  if KeyControl <> nil then
+    KeyControl.Perform(WM_COPY, 0, 0);
+end;
+
+procedure TCGScene.WMCut(var Message: TWMCut);
+begin
+  if KeyControl <> nil then
+    KeyControl.Perform(WM_CUT, 0, 0);
+end;
+
 procedure TCGScene.WMDestroy(var Message: TWMDestroy);
 begin
   DoFreeContext;
@@ -1438,6 +1480,12 @@ begin
     EndPaint(Handle, PS);
     Message.Result := 0;
   end;
+end;
+
+procedure TCGScene.WMPaste(var Message: TWMPaste);
+begin
+  if KeyControl <> nil then
+    KeyControl.Perform(WM_PASTE, 0, 0);
 end;
 
 procedure TCGScene.WMSize(var Message: TWMSize);
@@ -2373,6 +2421,36 @@ begin
     raise EInvalidOperation.Create('Custom Graphic Container can be placed only on TCGScene or another Custom Graphic containers: ' + AParent.ClassName);
 end;
 
+procedure TCGWinControl.WMClear(var Message: TWMClear);
+begin
+  if csDesigning in ComponentState then
+    inherited
+  else begin
+    if Scene <> Self then
+      Message.Result:= Scene.Perform(WM_CLEAR, 0, 0);
+  end;
+end;
+
+procedure TCGWinControl.WMCopy(var Message: TWMCopy);
+begin
+  if csDesigning in ComponentState then
+    inherited
+  else begin
+    if Scene <> Self then
+      Message.Result:= Scene.Perform(WM_COPY, 0, 0);
+  end;
+end;
+
+procedure TCGWinControl.WMCut(var Message: TWMCut);
+begin
+  if csDesigning in ComponentState then
+    inherited
+  else begin
+    if Scene <> Self then
+      Message.Result:= Scene.Perform(WM_CUT, 0, 0);
+  end;
+end;
+
 procedure TCGWinControl.WMEraseBkgnd(var Message: TWmEraseBkgnd);
 begin
   if csDesigning in ComponentState then
@@ -2398,6 +2476,16 @@ begin
     inherited
   else
     Message.Result := 0;
+end;
+
+procedure TCGWinControl.WMPaste(var Message: TWMPaste);
+begin
+  if csDesigning in ComponentState then
+    inherited
+  else begin
+    if Scene <> Self then
+      Message.Result:= Scene.Perform(WM_PASTE, 0, 0);
+  end;
 end;
 
 procedure TCGWinControl.WMSetCursor(var Message: TWMSetCursor);
