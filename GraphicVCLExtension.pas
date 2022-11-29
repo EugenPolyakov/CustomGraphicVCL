@@ -117,7 +117,7 @@ end;
 
 constructor TControlWithFont.Create(AOwner: TComponent);
 begin
-  inherited;
+  inherited Create(AOwner);
   FParentFont:= True;
   Color:= clWindowText;
 end;

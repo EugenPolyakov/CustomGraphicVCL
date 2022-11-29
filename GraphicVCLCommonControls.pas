@@ -62,7 +62,6 @@ type
     FDisabledPicture: TContextController<TCGBilboard>;
     FHoverDisabledPicture: TContextController<TCGBilboard>;
     FState: TButtonState;
-    FDragging: Boolean;
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -2599,10 +2598,10 @@ end;
 procedure TCGButton.CMMouseEnter(var Message: TMessage);
 begin
   inherited;
-  if not FDragging then
-    FState:= bsExclusive
+  if csClicked in ControlState then
+    FState:= bsDown
   else
-    FState:= bsDown;
+    FState:= bsExclusive;
   Invalidate;
 end;
 
@@ -2624,7 +2623,6 @@ end;
 constructor TCGButton.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  ControlStyle := [csCaptureMouse];
 end;
 
 procedure TCGButton.DesignCalcRect(var R: TRect; var Flags: TTextFormat);
@@ -2747,12 +2745,10 @@ procedure TCGButton.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited MouseDown(Button, Shift, X, Y);
-  if (Button = mbLeft) and Enabled then
+  if csClicked in ControlState then
   begin
-    MouseCapture:= True;
     FState := bsDown;
     Invalidate;
-    FDragging := True;
   end;
 end;
 
@@ -2761,7 +2757,7 @@ var
   NewState: TButtonState;
 begin
   inherited MouseMove(Shift, X, Y);
-  if FDragging then
+  if csClicked in ControlState then
   begin
     NewState := bsUp;
     if (X >= 0) and (X < ClientWidth) and (Y >= 0) and (Y <= ClientHeight) then
@@ -2780,14 +2776,10 @@ var
   DoClick: Boolean;
 begin
   inherited MouseUp(Button, Shift, X, Y);
-  if FDragging then
+  if csClicked in ControlState then
   begin
-    MouseCapture:= False;
-    FDragging := False;
-    DoClick := (X >= 0) and (X < ClientWidth) and (Y >= 0) and (Y <= ClientHeight);
     FState := bsUp;
     Invalidate;
-    if DoClick then Click;
   end;
 end;
 
