@@ -395,8 +395,8 @@ type
 
   TGetDrawCellParameters = procedure (Sender: TObject; X, Y: Integer;
       var AColor: TColor; IsHover: Boolean) of object;
-  TCellClick = procedure (Sender: TObject; X, Y: Integer) of object;
-  THeaderClick = procedure (Sender: TObject; Index: Integer) of object;
+  TCellClick = procedure (Sender: TObject; Button: TMouseButton; X, Y: Integer) of object;
+  THeaderClick = procedure (Sender: TObject; Button: TMouseButton; Index: Integer) of object;
 
   TCGStringGrid = class (TScrolledWithFont)
   private
@@ -1735,14 +1735,14 @@ begin
   old:= GetHeaderCell(X, Y);
   if old >= 0 then begin
     if Assigned(FOnHeaderClick) then
-      FOnHeaderClick(Self, old);
+      FOnHeaderClick(Self, Button, old);
   end else begin
     old:= FActiveLine;
     FActiveLine:= GetLine(X, Y);
     if old <> FActiveLine then
       Invalidate;
     if (FActiveLine >= 0) and Assigned(FOnCellClick) then
-      FOnCellClick(Self, 0, FActiveLine);
+      FOnCellClick(Self, Button, 0, FActiveLine);
   end;
 end;
 
