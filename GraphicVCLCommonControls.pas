@@ -2690,8 +2690,11 @@ begin
       end;
     bsExclusive: begin
         p:= @FHoverPicture;
-        if not Enabled then
+        if not Enabled then begin
           p:= @FHoverDisabledPicture;
+          if p.Value = nil then
+            p:= @FDisabledPicture;
+        end;
         if p.Value = nil then
           p:= @FDefaultPicture;
       end;
