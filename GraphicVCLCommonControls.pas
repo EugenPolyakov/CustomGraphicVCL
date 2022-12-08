@@ -1838,11 +1838,15 @@ begin
   if ACol >= FColCount then
     ColCount:= ACol + 1;
 
-  if ARow >= FCells.Count then begin
+  if ARow >= FCells.Count then
     FCells.Count:= ARow + 1;
-    FCells[ARow]:= TList<TTextObjectBase>.Create;
-  end;
+
   l:= FCells[ARow];
+  if l = nil then begin
+    l:= TList<TTextObjectBase>.Create;
+    FCells[ARow]:= l;
+  end;
+
   if ACol >= l.Count then begin
     l.Count:= ACol + 1;
     o:= Font.GenerateText;
