@@ -270,18 +270,10 @@ begin
 end;
 
 procedure TControlWithInput.CMParentStateChanged(var Message: TMessage);
-var w: TWinControl;
 begin
-  if (Scene <> nil) and (Scene.KeyControl = Self) then begin
-    w:= Parent;
-    while w <> Scene do begin
-      if not w.Visible or not w.Enabled then begin
-        Scene.KeyControl:= nil;
-        Break;
-      end;
-      w:= w.Parent;
-    end;
-  end;
+  if (Scene <> nil) and (Scene.KeyControl = Self) then
+    if not CanFocus then
+      Scene.KeyControl:= nil;
 end;
 
 procedure TControlWithInput.CMVisibleChanged(var Message: TMessage);
@@ -294,7 +286,7 @@ end;
 function TControlWithInput.IsFocused: Boolean;
 begin
   Result:= False;
-  if Scene <> nil then
+  if CanFocus then
     Result:= Scene.KeyControl = Self;
 end;
 
@@ -324,7 +316,7 @@ procedure TControlWithInput.MouseDown(Button: TMouseButton; Shift: TShiftState;
 begin
   inherited MouseDown(Button, Shift, X, Y);
   if not (csDesigning in ComponentState) then
-    if Scene <> nil then
+    if CanFocus then
       Scene.KeyControl:= Self;
 end;
 
