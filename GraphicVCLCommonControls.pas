@@ -1838,9 +1838,6 @@ begin
   if ACol >= FColCount then
     ColCount:= ACol + 1;
 
-  if ARow >= FCells.Count then
-    FCells.Count:= ARow + 1;
-
   l:= FCells[ARow];
   if l = nil then begin
     l:= TList<TTextObjectBase>.Create;
@@ -2016,9 +2013,7 @@ end;
 procedure TCGStringGrid.SetRowCount(const Value: Integer);
 begin
   if FRowCount <> Value then begin
-    if FRowCount > Value then
-      FCells.Count:= Value;
-
+    FCells.Count:= Value;
     SetLength(FRowData, Value);
     SetLength(FRowHeights, Value);
     FRowCount := Value;
