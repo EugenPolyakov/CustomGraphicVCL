@@ -2258,10 +2258,12 @@ begin
   else
     P:= SmallPointToPoint(Message.Pos);
 
-  Control:= GetCaptureControl;
-  if (Control <> nil) and (Control.Parent <> Self) then
-    Control := nil
-  else
+  if GetCapture = Handle then
+  begin
+    Control:= GetCaptureControl;
+    if Control.Parent <> Self then
+      Control := nil;
+  end else
     Control := ControlAtPos(P, False);
   Result := False;
   if Control <> nil then
