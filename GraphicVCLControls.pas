@@ -345,6 +345,7 @@ type
     function GetClientRectWithOffset: TRect; virtual;
     procedure SceneChanged(AParent: TWinControl); virtual;
     procedure SetParent(AParent: TWinControl); override;
+    function IsControlMouseMsg(var Message: TWMMouse): Boolean;
     procedure WndProc(var Message: TMessage); override;
     procedure ControlWndProc(var Message: TMessage);
     procedure DoUpdateBorder(Sender: TObject); virtual;
@@ -431,6 +432,10 @@ type
     FKeyControl: TCGControl;
     FTimer: TTimer;
     FOnRepeatTimer: TNotifyEvent;
+
+    FLastMouseClickMessage: DWORD;
+    FLastMouseControl: TControl;
+    FLastMouseTime: DWORD;
     procedure CMParentFontChanged(var Message: TCMParentFontChanged); message CM_PARENTFONTCHANGED;
     procedure WMPaint(var Message: TWMPaint); message WM_PAINT;
     procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
@@ -473,6 +478,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
+    function TransformMouseEvent(AMessage: DWORD; AControl: TControl): DWORD;
   public
     procedure DoFreeContext;
     function GetClientOffset: TPoint; override;
@@ -903,15 +909,20 @@ var
 begin
   if GetCapture = Handle then
     Exit(False)
-  else
-    Control := WinControlAtPos(SmallPointToPoint(Message.Pos), True);
+  else begin
+    if (Width > 32768) or (Height > 32768) then
+      P:= CalcCursorPos
+    else
+      P:= SmallPointToPoint(Message.Pos);
+    Control := WinControlAtPos(P, True);
+  end;
   Result := False;
   if Control <> nil then
   begin
     if Message.Msg = WM_MOUSEMOVE then
       ProcessMouseMove(Control, GetCaptureControl);
-    P.X := Message.XPos - Control.Left;
-    P.Y := Message.YPos - Control.Top;
+    P.X := P.X - Control.Left;
+    P.Y := P.Y - Control.Top;
     Message.Result := Control.Perform(Message.Msg, Message.Keys, PointToLParam(P));
     Result := True;
   end;
@@ -1154,7 +1165,7 @@ begin
   inherited;
   ParentFont:= False;
   ControlStyle := [csAcceptsControls, csCaptureMouse, csClickEvents,
-    csOpaque, csDoubleClicks, csReplicatable, csPannable, csGestures];
+    csOpaque, csReplicatable, csPannable, csGestures];
   inherited DoubleBuffered:= False;
   FDoubleBuffered:= True;
   FClearAlpha:= 1.0;
@@ -1395,6 +1406,27 @@ begin
   i:= FContextEventList.IndexOf(ACallBack);
   if i < 0 then
     FContextEventList.Add(ACallBack);
+end;
+
+function TCGScene.TransformMouseEvent(AMessage: DWORD; AControl: TControl): DWORD;
+begin
+  Result:= AMessage;
+  case AMessage of
+    WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN: begin
+      if (AMessage <> FLastMouseClickMessage) or (AControl <> FLastMouseControl) then begin
+        FLastMouseClickMessage:= AMessage;
+        FLastMouseControl:= AControl;
+        FLastMouseTime:= GetTickCount;
+      end else if FLastMouseTime + GetDoubleClickTime > GetTickCount then begin
+        //convert to XBUTTONDBLCLK
+        Inc(Result, WM_LBUTTONDBLCLK - WM_LBUTTONDOWN);
+      end else begin
+        FLastMouseClickMessage:= AMessage;
+        FLastMouseControl:= AControl;
+        FLastMouseTime:= GetTickCount;
+      end
+    end;
+  end;
 end;
 
 procedure TCGScene.UnsubscribeToContext(ACallBack: TCustomContextEvent);
@@ -2056,6 +2088,7 @@ begin
   if not (csDesigning in ComponentState) then begin
     Params.X:= 0;
     Params.Y:= 0;
+    Params.WindowClass.style:= Params.WindowClass.style and not CS_DBLCLKS;
   end;
 end;
 
@@ -2212,6 +2245,33 @@ begin
     inherited
   else if Parent <> nil then
     Parent.Invalidate;
+end;
+
+function TCGWinControl.IsControlMouseMsg(var Message: TWMMouse): Boolean;
+var
+  Control: TControl;
+  P: TPoint;
+  FixedMsg: DWORD;
+begin
+  if (Width > 32768) or (Height > 32768) then
+    P:= CalcCursorPos
+  else
+    P:= SmallPointToPoint(Message.Pos);
+
+  Control:= GetCaptureControl;
+  if (Control <> nil) and (Control.Parent <> Self) then
+    Control := nil
+  else
+    Control := ControlAtPos(P, False);
+  Result := False;
+  if Control <> nil then
+  begin
+    FixedMsg:= Scene.TransformMouseEvent(Message.Msg, Control);
+    P.X := P.X - Control.Left;
+    P.Y := P.Y - Control.Top;
+    Message.Result := Control.Perform(FixedMsg, Message.Keys, PointToLParam(P));
+    Result := True;
+  end;
 end;
 
 function TCGWinControl.IsFontStored: Boolean;
@@ -2691,7 +2751,8 @@ begin
                      and (Message.Msg <> WM_MOUSEHWHEEL) then
                   DefWindowProc(Handle, Message.Msg, Message.wParam, Message.lParam);
                 Exit;
-              end;
+              end else
+                Message.Msg:= Scene.TransformMouseEvent(Message.Msg, Self);
           end;
         WM_MOUSEACTIVATE:
           begin
