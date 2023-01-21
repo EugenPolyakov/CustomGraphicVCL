@@ -93,6 +93,14 @@ type
     class operator NotEqual(const a, b: TTextPosition) : Boolean;
   end;
 
+  TSimple2DText = class (TColored2DObject)
+  private
+    FReady: Boolean;
+  protected
+  public
+    property Ready: Boolean read FReady write FReady;
+  end;
+
   TCGContextBaseClass = class of TCGContextBase;
 
   TCGFontGeneratorBase = class
@@ -102,10 +110,10 @@ type
     function GetLineHeight: Integer; virtual; abstract;
   public
     constructor Create(AFont: TFont; const CharPages: string); virtual; abstract;
-    function GenerateText(const AInfo: TTextData): TColored2DObject; virtual; abstract;
+    function GenerateText(const AInfo: TTextData): TSimple2DText; virtual; abstract;
     function GetCursorPosition(const AInfo: TTextData; X, Y: Integer): TTextPosition; overload; virtual; abstract;
     function GetCursorPosition(const AInfo: TTextData; Index: Integer): TTextPosition; overload; virtual; abstract;
-    function GetSizes(const AInfo: TTextData): TPoint; virtual; abstract;
+    function GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean; virtual; abstract;
     procedure FreeContext(AContext: TCGContextBase); virtual; abstract;
     property OnNeedRefresh: TNotifyEvent write SetNeedRefresh;
     property LineHeight: Integer read GetLineHeight;

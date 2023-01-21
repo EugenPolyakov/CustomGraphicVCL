@@ -1500,6 +1500,7 @@ var Z: TRect;
         Z.Width:= FColWidths[j];
         Context.PushScissor(Z);
         try
+          c.InitContext;
           c.Render(Z.Left, tl.Y);
         finally
           Context.PopScissor;
@@ -1783,7 +1784,6 @@ begin
           OnGetDrawCellParameters(Self, j, i, cellColor, FActiveLine = i);
           c.Color:= cellColor;
         end;
-        c.InitContext;
         p:= c.CalculateSize;
         if p.Y > FRowHeights[i] then
           FRowHeights[i]:= p.Y;
@@ -2774,8 +2774,6 @@ end;
 
 procedure TCGButton.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
-var
-  DoClick: Boolean;
 begin
   inherited MouseUp(Button, Shift, X, Y);
   if csClicked in ControlState then

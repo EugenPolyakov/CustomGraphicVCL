@@ -55,7 +55,9 @@ type
     FFontGenerator: TCGFontGenerator;
     FTextData: TTextData;
     FLastChanging: TChangedFlags;
-    FPreparedObject: TColored2DObject;
+    FPreparedObject: TSimple2DText;
+    FSizeIsReady: Boolean;
+    FSize: TPoint;
     procedure SetAlignment(const Value: TAlignment);
     procedure SetLayout(const Value: TTextLayout);
     procedure SetText(const Value: string);
@@ -90,8 +92,6 @@ type
     property MaxWidth: Integer read FTextData.MaxWidth write SetMaxWidth;
   end;
 
-  TTextObjectBaseClass = class of TTextObjectBase;
-
   TSceneComponent = class (TComponent)
   private
     FScene: TCGScene;
@@ -114,40 +114,32 @@ type
   private
     FFont: TFont;
     FSubscribers: TList<TControl>;
-    FTextObjects: TList<TTextObjectBase>;
-    FTextObjectClass: TTextObjectBaseClass;
     FGeneric2DObjectClass: TGeneric2DObjectClass;
     FFontGeneratorClass: TCGFontGeneratorClass;
     FFontGenerator: TCGFontGeneratorBase;
     FCharSet: string;
     procedure SetFont(const Value: TFont);
     procedure SetGeneric2DObjectClass(const Value: TGeneric2DObjectClass);
-    procedure SetTextObjectClass(const Value: TTextObjectBaseClass);
     procedure SetFontGeneratorClass(const Value: TCGFontGeneratorClass);
     procedure SetCharSet(const Value: string);
     function GetLineHeight: Integer;
   protected
     procedure NeedRefresh(Sender: TObject);
-    procedure DoInvalid(Sender: TObject; const Item: TTextObjectBase; Action: TCollectionNotification);
     function GetFontGenerator: TCGFontGeneratorBase;
     procedure OnFontChange(Sender: TObject);
     procedure ContextEvent(AContext: TCGContextBase; IsInitialization: Boolean); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure ResetAllTexts;
     procedure SubscribeOnChange(AControl: TCGControl); overload;
     procedure SubscribeOnChange(AScene: TCGScene); overload;
-    procedure SubscribeOnChange(AText: TTextObjectBase); overload;
     procedure UnSubscribeOnChange(AControl: TCGControl); overload;
     procedure UnSubscribeOnChange(AScene: TCGScene); overload;
-    procedure UnSubscribeOnChange(AText: TTextObjectBase); overload;
     function GenerateText: TTextObjectBase;
-    function GenerateTextContext(const ATextData: TTextData): TColored2DObject;
+    function GenerateTextContext(const ATextData: TTextData): TSimple2DText;
     function GetCursorPosition(AText: TTextObjectBase; X, Y: Integer): TTextPosition; overload; virtual;
     function GetCursorPosition(AText: TTextObjectBase; Index: Integer): TTextPosition; overload; virtual;
-    function GetSizes(const AInfo: TTextData): TPoint;
-    property TextObjectClass: TTextObjectBaseClass read FTextObjectClass write SetTextObjectClass;
+    function GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean;
     property Generic2DObjectClass: TGeneric2DObjectClass read FGeneric2DObjectClass write SetGeneric2DObjectClass;
     property FontGeneratorClass: TCGFontGeneratorClass read FFontGeneratorClass write SetFontGeneratorClass;
     property LineHeight: Integer read GetLineHeight;
@@ -2818,10 +2810,7 @@ begin
   FFont:= TFont.Create;
   FFont.OnChange:= OnFontChange;
   FSubscribers:= TList<TControl>.Create;
-  FTextObjects:= TList<TTextObjectBase>.Create;
-  FTextObjects.OnNotify:= DoInvalid;
 
-  FTextObjectClass:= TTextObjectBase;
   FFontGeneratorClass:= GetFontGeneratorClass;
 end;
 
@@ -2833,26 +2822,18 @@ begin
     TCGControl(c).Perform(CM_FONTGENERATORDESTROY, 0, 0);
   end;
   FSubscribers.Free;
-  FTextObjects.Free;
   FFont.Free;
   FFontGenerator.Free;
   inherited;
 end;
 
-procedure TCGFontGenerator.DoInvalid(Sender: TObject; const Item: TTextObjectBase;
-  Action: TCollectionNotification);
-begin
-  if Action = cnRemoved then
-    Item.DoInvalid;
-end;
-
 function TCGFontGenerator.GenerateText: TTextObjectBase;
 begin
-  Result:= FTextObjectClass.Create(Self);
+  Result:= TTextObjectBase.Create(Self);
 end;
 
 function TCGFontGenerator.GenerateTextContext(
-  const ATextData: TTextData): TColored2DObject;
+  const ATextData: TTextData): TSimple2DText;
 begin
   Result:= GetFontGenerator.GenerateText(ATextData);
 end;
@@ -2884,16 +2865,15 @@ begin
   Result:= GetFontGenerator.LineHeight;
 end;
 
-function TCGFontGenerator.GetSizes(const AInfo: TTextData): TPoint;
+function TCGFontGenerator.GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean;
 begin
-  Result:= GetFontGenerator.GetSizes(AInfo);
+  Result:= GetFontGenerator.GetSizes(AInfo, ASize);
 end;
 
 procedure TCGFontGenerator.NeedRefresh(Sender: TObject);
 begin
   if FScene <> nil then
     FScene.Invalidate;
-  ResetAllTexts;
 end;
 
 procedure TCGFontGenerator.OnFontChange(Sender: TObject);
@@ -2904,14 +2884,6 @@ begin
     c:= FSubscribers[i];
     TCGControl(c).Perform(CM_FONTGENERATORCHANGED, 0, 0);//.OnFontChange(Self);
   end;
-  ResetAllTexts;
-end;
-
-procedure TCGFontGenerator.ResetAllTexts;
-var i: Integer;
-begin
-  for i := 0 to FTextObjects.Count - 1 do
-    FTextObjects[i].Reset;
 end;
 
 procedure TCGFontGenerator.SetCharSet(const Value: string);
@@ -2928,8 +2900,8 @@ procedure TCGFontGenerator.SetFontGeneratorClass(
   const Value: TCGFontGeneratorClass);
 begin
   if FFontGeneratorClass <> Value then begin
-    FTextObjects.Clear;
     FFontGeneratorClass := Value;
+    OnFontChange(Self);
     GetFontGenerator;
   end;
 end;
@@ -2938,17 +2910,6 @@ procedure TCGFontGenerator.SetGeneric2DObjectClass(
   const Value: TGeneric2DObjectClass);
 begin
   FGeneric2DObjectClass := Value;
-end;
-
-procedure TCGFontGenerator.SetTextObjectClass(const Value: TTextObjectBaseClass);
-begin
-  FTextObjectClass := Value;
-end;
-
-procedure TCGFontGenerator.SubscribeOnChange(AText: TTextObjectBase);
-begin
-  if not FTextObjects.Contains(AText) then
-    FTextObjects.Add(AText);
 end;
 
 procedure TCGFontGenerator.SubscribeOnChange(AScene: TCGScene);
@@ -2977,14 +2938,6 @@ begin
   i:= FSubscribers.IndexOf(AControl);
   if i >= 0 then
     FSubscribers.Delete(i);
-end;
-
-procedure TCGFontGenerator.UnSubscribeOnChange(AText: TTextObjectBase);
-var i: Integer;
-begin
-  i:= FTextObjects.IndexOf(AText);
-  if i >= 0 then
-    FTextObjects.Delete(i);
 end;
 
 { TCGImage }
@@ -3140,10 +3093,13 @@ end;
 function TTextObjectBase.CalculateSize: TPoint;
 begin
   if not IsInvalid then begin
-    if (FPreparedObject <> nil) and (FLastChanging = []) then
-      Result.Create(FPreparedObject.Width, FPreparedObject.Height)
-    else
-      Result:= FFontGenerator.GetSizes(FTextData);
+    if not FSizeIsReady then
+      if (FPreparedObject <> nil) and FPreparedObject.Ready then begin
+        FSizeIsReady:= True;
+        FSize.Create(FPreparedObject.Width, FPreparedObject.Height)
+      end else
+        FSizeIsReady:= FFontGenerator.GetSizes(FTextData, FSize);
+    Result:= FSize;
   end else
     Result.Create(0, 0);
 end;
@@ -3151,7 +3107,6 @@ end;
 constructor TTextObjectBase.Create(AFontGenerator: TCGFontGenerator);
 begin
   FFontGenerator:= AFontGenerator;
-  FFontGenerator.SubscribeOnChange(Self);
 end;
 
 destructor TTextObjectBase.Destroy;
@@ -3179,9 +3134,9 @@ end;
 procedure TTextObjectBase.DoInvalid;
 begin
   if FFontGenerator <> nil then begin
-    FFontGenerator.UnSubscribeOnChange(Self);
     FFontGenerator:= nil;
   end;
+  FSizeIsReady:= False;
 end;
 
 procedure TTextObjectBase.FreeContext(AContext: TCGContextBase);
@@ -3238,6 +3193,7 @@ procedure TTextObjectBase.SetAlignment(const Value: TAlignment);
 begin
   if FTextData.Alignment <> Value then begin
     Include(FLastChanging, cfAlignment);
+    FSizeIsReady:= False;
     FTextData.Alignment := Value;
   end;
 end;
@@ -3254,6 +3210,7 @@ procedure TTextObjectBase.SetLayout(const Value: TTextLayout);
 begin
   if FTextData.Layout <> Value then begin
     Include(FLastChanging, cfLayout);
+    FSizeIsReady:= False;
     FTextData.Layout := Value;
   end;
 end;
@@ -3262,6 +3219,7 @@ procedure TTextObjectBase.SetMaxHeight(const Value: Integer);
 begin
   if FTextData.MaxHeight <> Value then begin
     Include(FLastChanging, cfMaxHeight);
+    FSizeIsReady:= False;
     FTextData.MaxHeight := Value;
   end;
 end;
@@ -3270,6 +3228,7 @@ procedure TTextObjectBase.SetMaxWidth(const Value: Integer);
 begin
   if FTextData.MaxWidth <> Value then begin
     Include(FLastChanging, cfMaxWidth);
+    FSizeIsReady:= False;
     FTextData.MaxWidth := Value;
   end;
 end;
@@ -3278,6 +3237,7 @@ procedure TTextObjectBase.SetText(const Value: string);
 begin
   if FTextData.Text <> Value then begin
     Include(FLastChanging, cfText);
+    FSizeIsReady:= False;
     FTextData.Text := Value;
   end;
 end;
@@ -3286,6 +3246,7 @@ procedure TTextObjectBase.SetWordWrap(const Value: Boolean);
 begin
   if FTextData.WordWrap <> Value then begin
     Include(FLastChanging, cfWordWrap);
+    FSizeIsReady:= False;
     FTextData.WordWrap := Value;
   end;
 end;
