@@ -27,11 +27,10 @@ type
     function IsContextCreated: Boolean; override;
   end;
 
-  TTextObject = class (TColored2DObject)
+  TTextObject = class (TSimple2DText)
   private
     FOffset: Integer;
     FText: TTextData;
-    FReady: Boolean;
   protected
     procedure SetColor(const Value: TColor); override;
     function GetColor: TColor; override;
@@ -56,11 +55,11 @@ type
   public
     constructor Create(AFont: TFont; const CharPages: string); override;
     destructor Destroy; override;
-    function GenerateText(const AInfo: TTextData): TColored2DObject; override;
+    function GenerateText(const AInfo: TTextData): TSimple2DText; override;
     procedure FreeContext(AContext: TCGContextBase); override;
     function GetCursorPosition(const AInfo: TTextData; X, Y: Integer): TTextPosition; overload; override;
     function GetCursorPosition(const AInfo: TTextData; Index: Integer): TTextPosition; overload; override;
-    function GetSizes(const AInfo: TTextData): TPoint; override;
+    function GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean; override;
   end;
 
   TBilboardObject = class (TCGBilboard)
@@ -127,6 +126,7 @@ begin
   FPF.cColorBits:= 32;
   FPF.cDepthBits:= 24;
   FPF.cStencilBits:= 8;
+  FPF.iPixelType:= PFD_TYPE_RGBA;
 
   nPixelFormat := ChoosePixelFormat (DC, @FPF);
   SetPixelFormat (DC, nPixelFormat, @FPF);
@@ -166,7 +166,6 @@ procedure TCustomContext.PrepareNewFrame(ClearBits: LongWord;
 begin
   glClearColor(Color.Red, Color.Green, Color.Blue, Color.Alpha);
   glClear(ClearBits);
-  glEnable(GL_TEXTURE);
 end;
 
 procedure TCustomContext.SetScissor(const R: TRect);
@@ -176,10 +175,12 @@ begin
 end;
 
 procedure TCustomContext.SetViewPort(const R: TRect);
+var f: array [0..15] of single;
 begin
   glViewport(R.Left, R.Top, R.Right, R.Bottom);
   glLoadIdentity;
   glOrtho(0, R.Width, R.Height, 0, 0, 3);
+  glGetFloatv(GL_MODELVIEW_MATRIX, @f[0]);
   glTranslatef(0, 0, -2);
 end;
 
@@ -197,7 +198,7 @@ begin
   glColor3f(Color4f.Red, Color4f.Green, Color4f.Blue);
   glBegin(GL_TRIANGLE_STRIP);
   for i := 0 to High(APonts) do with APonts[i] do
-    glVertex2f(X, Y);
+    glVertex2f(X + Pos.X, Y + Pos.Y);
   glEnd;
 end;
 
@@ -238,7 +239,7 @@ begin
 end;
 
 function TCustomFontGenerator.GenerateText(
-  const AInfo: TTextData): TColored2DObject;
+  const AInfo: TTextData): TSimple2DText;
 begin
   if not FIsGenerated then begin
     FIsGenerated:= wglUseFontBitmapsA(GetDC(0), 0, 255, 1);
@@ -263,7 +264,7 @@ begin
 
 end;
 
-function TCustomFontGenerator.GetSizes(const AInfo: TTextData): TPoint;
+function TCustomFontGenerator.GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean;
 begin
 
 end;
@@ -369,6 +370,7 @@ begin
   glTexCoord2f(TexCoord.Left / TexCoord.Right, Bilboard.Height / TexCoord.Bottom);
   glVertex2f(Bilboard.Left, Bilboard.Bottom);
   glEnd;
+  glDisable(GL_TEXTURE_2D);
 end;
 
 procedure TBilboardObject.FillFromFile(const AFileName: string);
@@ -431,7 +433,7 @@ begin
   Target:= GL_TEXTURE_2D;
   glGenTextures(1, @FTexture);
   internalFormat:= GL_RGB;
-  pixelFormat:= GL_BGR;
+  pixelFormat:= GL_RGB;
   lineSize:= 3 * FGraphic.Width;
   pixelType:= GL_UNSIGNED_BYTE;
 
@@ -446,7 +448,7 @@ begin
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   SetLength(full, LineSize * FGraphic.Height);
   for i := 0 to FGraphic.Height - 1 do
-    Move(FGraphic.ScanLine[i]^, full[0], 3 * FGraphic.Width);
+    Move(FGraphic.ScanLine[i]^, full[i * 3 * FGraphic.Width], 3 * FGraphic.Width);
 
   glTexImage2D(Target, 0, internalFormat, FGraphic.Width, FGraphic.Height, 0,
     pixelFormat, pixelType, @full[0]);
