@@ -29,8 +29,9 @@ type
 
   TTextObject = class (TSimple2DText)
   private
-    FOffset: Integer;
+    FOffset: DWORD;
     FText: TTextData;
+    FString: AnsiString;
   protected
     procedure SetColor(const Value: TColor); override;
     function GetColor: TColor; override;
@@ -39,7 +40,7 @@ type
     procedure InnerInitContext; override;
     procedure InnerFreeContext(AContext: TCGContextBase); override;
   public
-    constructor Create(FOffset: Integer; const AInfo: TTextData);
+    constructor Create(AOffset: DWORD; const AInfo: TTextData);
     procedure Draw(X: Integer; Y: Integer); override;
     procedure DrawWithSize(const Pos: TPoint; const Size: TPoint); override;
     procedure ActualizeContext; override;
@@ -47,6 +48,7 @@ type
 
   TCustomFontGenerator = class (TCGFontGeneratorBase)
   private
+    FDisplayListOffset: DWORD;
     FFont: TFont;
     FIsGenerated: Boolean;
   protected
@@ -175,12 +177,10 @@ begin
 end;
 
 procedure TCustomContext.SetViewPort(const R: TRect);
-var f: array [0..15] of single;
 begin
   glViewport(R.Left, R.Top, R.Right, R.Bottom);
   glLoadIdentity;
   glOrtho(0, R.Width, R.Height, 0, 0, 3);
-  glGetFloatv(GL_MODELVIEW_MATRIX, @f[0]);
   glTranslatef(0, 0, -2);
 end;
 
@@ -242,9 +242,10 @@ function TCustomFontGenerator.GenerateText(
   const AInfo: TTextData): TSimple2DText;
 begin
   if not FIsGenerated then begin
-    FIsGenerated:= wglUseFontBitmapsA(GetDC(0), 0, 255, 1);
+    FDisplayListOffset:= glGenLists(256);
+    FIsGenerated:= wglUseFontBitmapsA(GetDC(0), 0, 255, FDisplayListOffset);
   end;
-  Result:= TTextObject.Create(1, AInfo);
+  Result:= TTextObject.Create(FDisplayListOffset, AInfo);
 end;
 
 function TCustomFontGenerator.GetCursorPosition(const AInfo: TTextData; X,
@@ -261,7 +262,7 @@ end;
 
 function TCustomFontGenerator.GetLineHeight: Integer;
 begin
-
+  Result:= FFont.Height;
 end;
 
 function TCustomFontGenerator.GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean;
@@ -283,13 +284,23 @@ begin
 
 end;
 
-constructor TTextObject.Create(FOffset: Integer; const AInfo: TTextData);
+constructor TTextObject.Create(AOffset: DWORD; const AInfo: TTextData);
 begin
-
+  FText:= AInfo;
+  FOffset:= AOffset;
+  FString:= AnsiString(FText.Text);
 end;
 
 procedure TTextObject.Draw(X, Y: Integer);
+var tc: TColor4f;
 begin
+  tc.Create(FText.Color);
+  glColor3f(tc.Red, tc.Green, tc.Blue);
+  glRasterPos2i(X, Y);
+  glPushAttrib(GL_LIST_BIT);
+  glListBase(FOffset);
+  glCallLists(Length(FString), GL_UNSIGNED_BYTE, PAnsiChar(FString));
+  glPopAttrib;
 end;
 
 procedure TTextObject.DrawWithSize(const Pos, Size: TPoint);
@@ -299,17 +310,17 @@ end;
 
 function TTextObject.GetColor: TColor;
 begin
-
+  Result:= FText.Color;
 end;
 
 function TTextObject.GetHeight: Integer;
 begin
-
+  Result:= FText.MaxHeight;
 end;
 
 function TTextObject.GetWidth: Integer;
 begin
-
+  Result:= FText.MaxWidth;
 end;
 
 procedure TTextObject.InnerFreeContext(AContext: TCGContextBase);
@@ -327,7 +338,7 @@ end;
 procedure TTextObject.SetColor(const Value: TColor);
 begin
   inherited;
-
+  FText.Color:= Value;
 end;
 
 { TBilboardObject }

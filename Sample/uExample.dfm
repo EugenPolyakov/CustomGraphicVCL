@@ -37,6 +37,7 @@ object fExample: TfExample
       Top = 451
       Width = 619
       Height = 14
+      Color = clRed
       Align = alBottom
       Caption = 'CGLabel2'
       ExplicitLeft = 3
@@ -48,10 +49,11 @@ object fExample: TfExample
       Top = 176
       Width = 241
       Height = 73
+      Border = CGBorderTemplateRed
       VerticalScrollBar = CGScrollBarTemplate1
       object CGEdit1: TCGEdit
         Left = 0
-        Top = 55
+        Top = 96
         Width = 241
         Height = 41
         Hint = 'CGEdit1'
@@ -78,10 +80,28 @@ object fExample: TfExample
       end
       object CGSpinEdit1: TCGSpinEdit
         Left = 0
-        Top = 14
+        Top = 55
         Width = 241
         Height = 41
         Hint = 'CGSpinEdit1'
+        Border = CGBorderTemplateWhite
+        AutoHint = CGLabel2
+        Align = alTop
+        SelectionColor = clBlack
+        UpDown = UpDownTemplate1
+        MaxValue = 100
+        MinValue = 0
+        ExplicitLeft = 16
+        ExplicitTop = 40
+        ExplicitWidth = 100
+      end
+      object CGSpinEdit2: TCGSpinEdit
+        Left = 0
+        Top = 14
+        Width = 241
+        Height = 41
+        Hint = 'CGSpinEdit2'
+        Border = CGBorderTemplateWhite
         AutoHint = CGLabel2
         Align = alTop
         SelectionColor = clBlack
@@ -119,5 +139,17 @@ object fExample: TfExample
     ButtonWidth = 10
     Left = 464
     Top = 280
+  end
+  object CGBorderTemplateWhite: TCGBorderTemplate
+    Scene = CGScene1
+    BorderSize = 1
+    Left = 464
+    Top = 336
+  end
+  object CGBorderTemplateRed: TCGBorderTemplate
+    Scene = CGScene1
+    BorderSize = 1
+    Left = 464
+    Top = 384
   end
 end
