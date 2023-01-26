@@ -15,6 +15,14 @@ const
   CM_BORDERSIZECHANGED       = CM_BASE + 94;
 
 type
+  TCMFontGeneratorChanged = record
+    Msg: Cardinal;
+    IsFontChanged: LongBool;
+    IsFontChangedFiller: TDWordFiller;
+    LParam: LPARAM;
+    Result: LRESULT;
+  end;
+
   TCGScene = class;
   TCGWinControl = class;
   TCGControl = class;
@@ -126,6 +134,7 @@ type
   protected
     procedure NeedRefresh(Sender: TObject);
     function GetFontGenerator: TCGFontGeneratorBase;
+    procedure ProcessFontUpdate(AFontChanged: Boolean);
     procedure OnFontChange(Sender: TObject);
     procedure ContextEvent(AContext: TCGContextBase; IsInitialization: Boolean); override;
   public
@@ -2872,17 +2881,24 @@ end;
 
 procedure TCGFontGenerator.NeedRefresh(Sender: TObject);
 begin
-  if FScene <> nil then
+  if FScene <> nil then begin
     FScene.Invalidate;
+    ProcessFontUpdate(False);
+  end;
 end;
 
 procedure TCGFontGenerator.OnFontChange(Sender: TObject);
+begin
+  ProcessFontUpdate(True);
+end;
+
+procedure TCGFontGenerator.ProcessFontUpdate(AFontChanged: Boolean);
 var i: Integer;
     c: TControl;
 begin
   for i := 0 to FSubscribers.Count - 1 do begin
     c:= FSubscribers[i];
-    TCGControl(c).Perform(CM_FONTGENERATORCHANGED, 0, 0);//.OnFontChange(Self);
+    TCGControl(c).Perform(CM_FONTGENERATORCHANGED, WPARAM(AFontChanged), 0);
   end;
 end;
 
@@ -2901,7 +2917,7 @@ procedure TCGFontGenerator.SetFontGeneratorClass(
 begin
   if FFontGeneratorClass <> Value then begin
     FFontGeneratorClass := Value;
-    OnFontChange(Self);
+    ProcessFontUpdate(True);
     GetFontGenerator;
   end;
 end;
@@ -3094,7 +3110,7 @@ function TTextObjectBase.CalculateSize: TPoint;
 begin
   if not IsInvalid then begin
     if not FSizeIsReady then
-      if (FPreparedObject <> nil) and FPreparedObject.Ready then begin
+      if (FPreparedObject <> nil) and FPreparedObject.Ready and (FLastChanging - [cfColor] = []) then begin
         FSizeIsReady:= True;
         FSize.Create(FPreparedObject.Width, FPreparedObject.Height)
       end else

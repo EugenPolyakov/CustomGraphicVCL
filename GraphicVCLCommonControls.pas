@@ -19,7 +19,7 @@ type
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
-    procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
+    procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
   protected
     procedure AdjustSize; override;
     function EnsureTextReady: Boolean;
@@ -122,7 +122,7 @@ type
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
-    procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
+    procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
 
     procedure WMCopy(var Message: TWMCopy); message WM_COPY;
     procedure WMClear(var Message: TWMClear); message WM_CLEAR;
@@ -286,7 +286,7 @@ type
     FLayout: TTextLayout;
     FAlignment: TAlignment;
     FWordWrap: Boolean;
-    procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
+    procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
     function GetCount: Integer;
     procedure SetAlignment(const Value: TAlignment);
     procedure SetItems(const Value: TStrings);
@@ -424,7 +424,7 @@ type
     FActiveLine: Integer;
     FAutoScroll: Boolean;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
-    procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
+    procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
     procedure CMEnabledChanged(var Message: TMessage); message CM_ENABLEDCHANGED;
     function GetCells(ACol, ARow: Integer): string;
@@ -557,16 +557,19 @@ begin
   Invalidate;
 end;
 
-procedure TCGLabel.CMFontGeneratorChanged(var Message: TMessage);
+procedure TCGLabel.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
-    FText.DoInvalid;
-    if Scene <> nil then
-      Scene.AddToFreeContext(FText.FreeContextAndDestroy)
-    else
-      FText.Destroy;
-    FText:= nil;
+    if Message.IsFontChanged then begin
+      FText.DoInvalid;
+      if Scene <> nil then
+        Scene.AddToFreeContext(FText.FreeContextAndDestroy)
+      else
+        FText.Destroy;
+      FText:= nil;
+    end else
+      FText.Reset;
   end;
   AdjustSize;
 end;
@@ -722,16 +725,19 @@ begin
   Invalidate;
 end;
 
-procedure TCGEdit.CMFontGeneratorChanged(var Message: TMessage);
+procedure TCGEdit.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
-    FText.DoInvalid;
-    if Scene <> nil then
-      Scene.AddToFreeContext(FText.FreeContextAndDestroy)
-    else
-      FText.Destroy;
-    FText:= nil;
+    if Message.IsFontChanged then begin
+      FText.DoInvalid;
+      if Scene <> nil then
+        Scene.AddToFreeContext(FText.FreeContextAndDestroy)
+      else
+        FText.Destroy;
+      FText:= nil;
+    end else
+      FText.Reset;
   end;
 end;
 
@@ -1404,39 +1410,72 @@ begin
   FActiveLine:= -1;
 end;
 
-procedure TCGStringGrid.CMFontGeneratorChanged(var Message: TMessage);
+procedure TCGStringGrid.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 var
   i, j: Integer;
   t: TTextObjectBase;
   l: TList<TTextObjectBase>;
 begin
   inherited;
-  for i := 0 to FCells.Count - 1 do begin
-    l:= FCells[i];
-    if l <> nil then
-      for j := 0 to l.Count - 1 do
-        if l[j] <> nil then
-          l[j].DoInvalid;
-  end;
+  if Message.IsFontChanged then begin
+    for i:= 0 to High(FHeaderTitles) do
+      if FHeaderTitles[i] <> nil then
+        FHeaderTitles[i].DoInvalid;
 
-  if Font <> nil then
     for i := 0 to FCells.Count - 1 do begin
       l:= FCells[i];
-      if FCells[i] <> nil then
-        for j := 0 to l.Count - 1 do begin
-          t:= Font.GenerateText;
-          with l[j] do begin
-            t.Text:= Text;
-            t.Color:= Color;
-          end;
-          t.Alignment:= Alignment;
-          t.WordWrap:= WordWrap;
-          t.Layout:= Layout;
-          t.MaxHeight:= Height;
-          t.MaxWidth:= ColWidths[j];
-          l[j]:= t;
-        end;
+      if l <> nil then
+        for j := 0 to l.Count - 1 do
+          if l[j] <> nil then
+            l[j].DoInvalid;
     end;
+
+    if Font <> nil then begin
+      for i:= 0 to High(FHeaderTitles) do
+        if FHeaderTitles[i] <> nil then begin
+          t:= Font.GenerateText;
+          t.Text:= FHeaderTitles[i].Text;
+          t.Color:= Color;
+          t.Alignment:= HeaderAlignment;
+          t.WordWrap:= HeaderWordWrap;
+          t.Layout:= HeaderLayout;
+          t.MaxHeight:= HeaderHeight;
+          t.MaxWidth:= ColWidths[j];
+          FHeaderTitles[i]:= t;
+        end;
+
+      for i := 0 to FCells.Count - 1 do begin
+        l:= FCells[i];
+        if FCells[i] <> nil then
+          for j := 0 to l.Count - 1 do
+            if l[j] <> nil then begin
+              t:= Font.GenerateText;
+              with l[j] do begin
+                t.Text:= Text;
+                t.Color:= Color;
+              end;
+              t.Alignment:= Alignment;
+              t.WordWrap:= WordWrap;
+              t.Layout:= Layout;
+              t.MaxHeight:= Height;
+              t.MaxWidth:= ColWidths[j];
+              l[j]:= t;
+            end;
+      end;
+    end;
+  end else begin
+    for i:= 0 to High(FHeaderTitles) do
+      if FHeaderTitles[i] <> nil then
+        FHeaderTitles[i].Reset;
+
+    for i := 0 to FCells.Count - 1 do begin
+      l:= FCells[i];
+      if l <> nil then
+        for j := 0 to l.Count - 1 do
+          if l[j] <> nil then
+            l[j].Reset;
+    end;
+  end;
 end;
 
 procedure TCGStringGrid.CMVisibleChanged(var Message: TMessage);
@@ -2453,23 +2492,27 @@ begin
   FItems.Clear;
 end;
 
-procedure TCustomList.CMFontGeneratorChanged(var Message: TMessage);
+procedure TCustomList.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 var
   i: Integer;
   t: TTextObjectWithObject;
 begin
   inherited;
-  for i := 0 to FItems.Count - 1 do
-    TCGListBoxStrings(FItems).FLines[i].Text.DoInvalid;
-  if Font <> nil then
-    for i := 0 to FItems.Count - 1 do begin
-      t.Text:= Font.GenerateText;
-      with TCGListBoxStrings(FItems).FLines[i] do begin
-        t.Text.Assign(Text);
-        t.UserObject:= UserObject;
+  if Message.IsFontChanged then begin
+    for i := 0 to FItems.Count - 1 do
+      TCGListBoxStrings(FItems).FLines[i].Text.DoInvalid;
+    if Font <> nil then
+      for i := 0 to FItems.Count - 1 do begin
+        t.Text:= Font.GenerateText;
+        with TCGListBoxStrings(FItems).FLines[i] do begin
+          t.Text.Assign(Text);
+          t.UserObject:= UserObject;
+        end;
+        TCGListBoxStrings(FItems).FLines[i]:= t;
       end;
-      TCGListBoxStrings(FItems).FLines[i]:= t;
-    end;
+  end else
+    for i := 0 to FItems.Count - 1 do
+      TCGListBoxStrings(FItems).FLines[i].Text.Reset;
 end;
 
 constructor TCustomList.Create(AOwner: TComponent);
