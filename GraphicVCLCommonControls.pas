@@ -1440,7 +1440,7 @@ begin
           t.WordWrap:= HeaderWordWrap;
           t.Layout:= HeaderLayout;
           t.MaxHeight:= HeaderHeight;
-          t.MaxWidth:= ColWidths[j];
+          t.MaxWidth:= ColWidths[i];
           FHeaderTitles[i]:= t;
         end;
 

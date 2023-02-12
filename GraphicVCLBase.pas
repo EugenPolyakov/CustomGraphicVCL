@@ -121,24 +121,24 @@ type
 
   TCGFontGeneratorClass = class of TCGFontGeneratorBase;
 
-  TCGBilboard = class;
-  TCGBilboardClass = class of TCGBilboard;
+  TCGTexturedBilboard = class;
+  TCGTexturedBilboardClass = class of TCGTexturedBilboard;
 
   TCGTextureLibrary = class (TComponent)
   private
-    FBilboardClass: TCGBilboardClass;
-    FTiledBilboardClass: TCGBilboardClass;
-    FDictionary: TDictionary<string, TCGBilboard>;
-    procedure OnTextureRemove(Sender: TObject; const Item: TCGBilboard;
+    FBilboardClass: TCGTexturedBilboardClass;
+    FTiledBilboardClass: TCGTexturedBilboardClass;
+    FDictionary: TDictionary<string, TCGTexturedBilboard>;
+    procedure OnTextureRemove(Sender: TObject; const Item: TCGTexturedBilboard;
       Action: TCollectionNotification);
   protected
     procedure RemoveTexture(const AName: string);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    property BilboardClass: TCGBilboardClass read FBilboardClass write FBilboardClass;
-    property TiledBilboardClass: TCGBilboardClass read FTiledBilboardClass write FTiledBilboardClass;
-    function LoadTexture(const AFileName: string; Tiled: Boolean = False): TCGBilboard;
+    property BilboardClass: TCGTexturedBilboardClass read FBilboardClass write FBilboardClass;
+    property TiledBilboardClass: TCGTexturedBilboardClass read FTiledBilboardClass write FTiledBilboardClass;
+    function LoadTexture(const AFileName: string; Tiled: Boolean = False): TCGTexturedBilboard;
   end;
 
   TCGSolidBrush = class (TGeneric2DObject)
@@ -156,14 +156,20 @@ type
 
   TCGBilboard = class (TSized2DObject)
   private
+  protected
+  public
+    procedure DrawWithSize(const Pos: TPoint; const Size: TPoint); override;
+    procedure DrawBilboard(const Bilboard, TexCoord: TRect); virtual; abstract;
+  end;
+
+  TCGTexturedBilboard = class (TCGBilboard)
+  private
     FOwner: TCGTextureLibrary;
     FName: string;
   protected
   public
     procedure BeforeDestruction; override;
-    procedure DrawWithSize(const Pos: TPoint; const Size: TPoint); override;
     property Name: string read FName;
-    procedure DrawBilboard(const Bilboard, TexCoord: TRect); virtual; abstract;
     procedure FillFromFile(const AFileName: string); virtual; abstract;
     constructor Create(AOwner: TCGTextureLibrary; const AName: string); virtual;
   end;
@@ -261,21 +267,6 @@ end;
 
 { TCGBilboard }
 
-procedure TCGBilboard.BeforeDestruction;
-begin
-  inherited;
-  if Assigned(FOwner) then
-    FOwner.RemoveTexture(FName);
-end;
-
-constructor TCGBilboard.Create(AOwner: TCGTextureLibrary;
-  const AName: string);
-begin
-  inherited Create;
-  FOwner:= AOwner;
-  FName:= AName;
-end;
-
 procedure TCGBilboard.DrawWithSize(const Pos, Size: TPoint);
 var b, t: TRect;
 begin
@@ -289,7 +280,7 @@ end;
 constructor TCGTextureLibrary.Create(AOwner: TComponent);
 begin
   inherited;
-  FDictionary:= TDictionary<string, TCGBilboard>.Create;
+  FDictionary:= TDictionary<string, TCGTexturedBilboard>.Create;
   FDictionary.OnValueNotify:= OnTextureRemove;
 end;
 
@@ -299,7 +290,7 @@ begin
   inherited;
 end;
 
-function TCGTextureLibrary.LoadTexture(const AFileName: string; Tiled: Boolean): TCGBilboard;
+function TCGTextureLibrary.LoadTexture(const AFileName: string; Tiled: Boolean): TCGTexturedBilboard;
 var TextureName: string;
 begin
   TextureName:= StringReplace(AnsiUpperCase(AFileName), '\', '/', [rfReplaceAll]);
@@ -316,7 +307,7 @@ begin
 end;
 
 procedure TCGTextureLibrary.OnTextureRemove(Sender: TObject;
-  const Item: TCGBilboard; Action: TCollectionNotification);
+  const Item: TCGTexturedBilboard; Action: TCollectionNotification);
 begin
   if Action = cnRemoved then
     Item.FOwner:= nil;
@@ -425,6 +416,22 @@ begin
   Result:= (a.SymbolPosition <> b.SymbolPosition) or
     (a.LinePosition <> b.LinePosition) or
     (a.InLinePosition <> b.InLinePosition);
+end;
+
+{ TCGTexturedBilboard }
+
+procedure TCGTexturedBilboard.BeforeDestruction;
+begin
+  inherited;
+  if Assigned(FOwner) then
+    FOwner.RemoveTexture(FName);
+end;
+
+constructor TCGTexturedBilboard.Create(AOwner: TCGTextureLibrary; const AName: string);
+begin
+  inherited Create;
+  FOwner:= AOwner;
+  FName:= AName;
 end;
 
 end.
