@@ -271,7 +271,7 @@ procedure TCGBilboard.DrawWithSize(const Pos, Size: TPoint);
 var b, t: TRect;
 begin
   b.Create(Pos, Size.X, Size.Y);
-  t.Create(0, 0, Size.X, Size.Y);
+  t.Create(0, 0, Width, Height);
   DrawBilboard(b, t);
 end;
 

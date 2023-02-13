@@ -2977,23 +2977,24 @@ begin
   if FPicture.Value <> nil then begin
     FPicture.InitializeContext;
     t.Create(0, 0, FPicture.Value.Width, FPicture.Value.Height);
-    if Stretch then begin
-      if Proportional then begin
-        wp:= t.Right / R.Width;
-        hp:= t.Bottom / R.Height;
-        if wp > hp then
-          t.Right:= Round(t.Right * hp)
-        else
-          t.Bottom:= Round(t.Bottom * wp);
-      end;
-    end;
-    if not Stretch or Proportional then begin
-      if R.Width > t.Right then
+    if not Stretch then begin
+      if t.Right > R.Width then
+        t.Right:= R.Width
+      else if R.Width > t.Right then
         R.Width:= t.Right;
-      if R.Height > t.Bottom then
+      if t.Bottom > R.Height then
+        t.Bottom:= R.Height
+      else if R.Height > t.Bottom then
         R.Height:= t.Bottom;
+    end else if Proportional then begin
+      wp:= R.Width / t.Right;
+      hp:= R.Height / t.Bottom;
+      if wp < hp then
+        R.Height:= Round(t.Bottom * wp)
+      else
+        R.Width:= Round(t.Right * hp);
     end;
-    FPicture.Value.DrawBilboard(R, ClientRect);
+    FPicture.Value.DrawBilboard(R, t);
   end;
 end;
 
