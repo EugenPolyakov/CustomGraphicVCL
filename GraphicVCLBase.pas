@@ -293,6 +293,8 @@ end;
 function TCGTextureLibrary.LoadTexture(const AFileName: string; Tiled: Boolean): TCGTexturedBilboard;
 var TextureName: string;
 begin
+  if AFileName = '' then
+    Exit(nil);
   TextureName:= StringReplace(AnsiUpperCase(AFileName), '\', '/', [rfReplaceAll]);
   if Tiled then
     TextureName:= ':' + TextureName;
