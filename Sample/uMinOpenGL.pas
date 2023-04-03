@@ -10,7 +10,6 @@ type
   TCustomContext = class (TCGContextBase)
   private
     FGLRC: HGLRC;
-    FPS: TPaintStruct;
     FPF: TPixelFormatDescriptor;
     FDC: HDC;
   protected
@@ -64,7 +63,7 @@ type
     function GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean; override;
   end;
 
-  TBilboardObject = class (TCGBilboard)
+  TBilboardObject = class (TCGTexturedBilboard)
   private
     FGraphic: TBitmap;
     FTexture: GLUInt;

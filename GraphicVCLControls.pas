@@ -4131,11 +4131,11 @@ begin
   end else begin
     if button.Value <> nil then begin
       button.InitializeContext;
-      t.Create(Bounds.Right - b.Y + X, Bounds.Bottom + Y);
+      t.Create(Bounds.Right - b.Y + X, Bounds.Top + Y);
       button.Value.DrawWithSize(t, b);
     end;
 
-    l:= Bounds.Height - Template.ButtonSize * 3;
+    l:= Bounds.Width - Template.ButtonSize * 3;
     if l >= Template.ButtonSize then begin
       for i := ElementState[sbePage] downto Low(TScrollBarState) do begin
         button:= @Template.FButtonPage[i];
