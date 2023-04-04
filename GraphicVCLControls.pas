@@ -3700,7 +3700,10 @@ function TCGScrollBox.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
   Result:= True;
-  FScrollBars.DoVericalOffset(WheelDelta);
+  if ssShift in Shift then
+    FScrollBars.DoHorizontalOffset(WheelDelta)
+  else
+    FScrollBars.DoVericalOffset(WheelDelta);
   inherited DoMouseWheel(Shift, WheelDelta, MousePos);
 end;
 
@@ -4401,7 +4404,8 @@ begin
       Vertical.ScrollOffset:= Vertical.ScrollLength;
     if Assigned(Vertical.OnScrollOffsetChanged) and (old <> Vertical.ScrollOffset) then
       Vertical.OnScrollOffsetChanged(Vertical);
-  end;
+  end else
+    DoHorizontalOffset(Offset);
 end;
 
 function THVScrolls.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
