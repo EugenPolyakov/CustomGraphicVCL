@@ -257,12 +257,32 @@ begin
 end;
 
 procedure TCGContextBase.PushScissor(const R: TRect);
+var fixed: TRect;
 begin
-  if FScissorList.Count = 0 then
+  if FScissorList.Count = 0 then begin
     DoScissorActive(True);
 
-  SetScissor(R);
-  FScissorList.Add(R);
+    SetScissor(R);
+    FScissorList.Add(R);
+  end else begin
+    fixed:= FScissorList.Last;
+    if R.Left > fixed.Left then
+      fixed.Left:= R.Left;
+    if R.Right < fixed.Right then
+      fixed.Right:= R.Right;
+    if R.Top > fixed.Top then
+      fixed.Top:= R.Top;
+    if R.Bottom < fixed.Bottom then
+      fixed.Bottom:= R.Bottom;
+
+    if fixed.Left > fixed.Right then
+      fixed.Left:= fixed.Right;
+    if fixed.Top > fixed.Bottom then
+      fixed.Top:= fixed.Bottom;
+
+    SetScissor(fixed);
+    FScissorList.Add(fixed);
+  end;
 end;
 
 { TCGBilboard }
