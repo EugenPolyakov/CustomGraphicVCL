@@ -15,11 +15,23 @@ type
     class operator Implicit(const V: TColor4f): TColor;
   end;
 
+  TScissorRect = record
+  private
+    function GetRight: Integer; inline;
+  public
+    Left: Integer;
+    Bottom: Integer;
+    Width: Integer;
+    Height: Integer;
+    constructor Create(const R: TRect; ABottom: Integer);
+    property Right: Integer read GetRight;
+  end;
+
   TCGContextBase = class
   private
-    FScissorList: TList<TRect>;
+    FScissorList: TList<TScissorRect>;
   protected
-    procedure SetScissor(const R: TRect); virtual; abstract;
+    procedure SetScissor(const R: TScissorRect); virtual; abstract;
     procedure DoScissorActive(IsActive: Boolean); virtual; abstract;
   public
     constructor Create; virtual;
@@ -30,7 +42,7 @@ type
     procedure CreateContext(DC: HDC); virtual;
     procedure DestroyContext; virtual; abstract;
     function IsContextCreated: Boolean; virtual; abstract;
-    procedure PushScissor(const R: TRect);
+    procedure PushScissor(const R: TScissorRect);
     procedure PopScissor;
     destructor Destroy; override;
   end;
@@ -42,7 +54,7 @@ type
     procedure InnerInitContext; virtual; abstract;
     procedure InnerFreeContext(AContext: TCGContextBase); virtual; abstract;
   public
-    procedure DrawWithSize(const Pos, Size: TPoint); virtual;
+    procedure DrawWithSize(const Pos: TPoint; const Size: TSize); virtual;
     procedure DrawFigure(const Pos: TPoint; const APonts: array of TPoint); virtual; abstract;
     procedure Reference; inline;
     procedure Release; inline;
@@ -99,6 +111,7 @@ type
   protected
   public
     property Ready: Boolean read FReady write FReady;
+    procedure DrawFrame(X, Y: Integer; const ARect: TRect); virtual; abstract;
   end;
 
   TCGContextBaseClass = class of TCGContextBase;
@@ -158,7 +171,7 @@ type
   private
   protected
   public
-    procedure DrawWithSize(const Pos: TPoint; const Size: TPoint); override;
+    procedure DrawWithSize(const Pos: TPoint; const Size: TSize); override;
     procedure DrawBilboard(const Bilboard, TexCoord: TRect); virtual; abstract;
   end;
 
@@ -224,7 +237,7 @@ end;
 
 constructor TCGContextBase.Create;
 begin
-  FScissorList:= TList<TRect>.Create;
+  FScissorList:= TList<TScissorRect>.Create;
 end;
 
 procedure TCGContextBase.CreateContext(DC: HDC);
@@ -256,8 +269,8 @@ begin
     DoScissorActive(False);
 end;
 
-procedure TCGContextBase.PushScissor(const R: TRect);
-var fixed: TRect;
+procedure TCGContextBase.PushScissor(const R: TScissorRect);
+var fixed, orig: TScissorRect;
 begin
   if FScissorList.Count = 0 then begin
     DoScissorActive(True);
@@ -265,20 +278,21 @@ begin
     SetScissor(R);
     FScissorList.Add(R);
   end else begin
-    fixed:= FScissorList.Last;
-    if R.Left > fixed.Left then
-      fixed.Left:= R.Left;
-    if R.Right < fixed.Right then
-      fixed.Right:= R.Right;
-    if R.Top > fixed.Top then
-      fixed.Top:= R.Top;
-    if R.Bottom < fixed.Bottom then
-      fixed.Bottom:= R.Bottom;
+    orig:= FScissorList.Last;
+    fixed:= R;
+    if fixed.Left < orig.Left then
+      fixed.Left:= orig.Left;
+    if R.Left + R.Width > orig.Left + orig.Width then
+      fixed.Width:= orig.Left + orig.Width - fixed.Left;
+    if fixed.Bottom < orig.Bottom then
+      fixed.Bottom:= orig.Bottom;
+    if R.Bottom + R.Height > orig.Bottom + orig.Height then
+      fixed.Height:= orig.Bottom + orig.Height - fixed.Bottom;
 
-    if fixed.Left > fixed.Right then
-      fixed.Left:= fixed.Right;
-    if fixed.Top > fixed.Bottom then
-      fixed.Top:= fixed.Bottom;
+    if fixed.Width < 0 then
+      fixed.Width:= 0;
+    if fixed.Height < 0 then
+      fixed.Height:= 0;
 
     SetScissor(fixed);
     FScissorList.Add(fixed);
@@ -287,10 +301,10 @@ end;
 
 { TCGBilboard }
 
-procedure TCGBilboard.DrawWithSize(const Pos, Size: TPoint);
+procedure TCGBilboard.DrawWithSize(const Pos: TPoint; const Size: TSize);
 var b, t: TRect;
 begin
-  b.Create(Pos, Size.X, Size.Y);
+  b.Create(Pos, Size.cx, Size.cy);
   t.Create(0, 0, Width, Height);
   DrawBilboard(b, t);
 end;
@@ -367,9 +381,9 @@ end;
 
 { TGeneric2DObject }
 
-procedure TGeneric2DObject.DrawWithSize(const Pos, Size: TPoint);
+procedure TGeneric2DObject.DrawWithSize(const Pos: TPoint; const Size: TSize);
 begin
-  DrawFigure(Pos, [TPoint.Create(0, 0), TPoint.Create(0, Size.Y), TPoint.Create(Size.X, 0), Size]);
+  DrawFigure(Pos, [TPoint.Create(0, 0), TPoint.Create(0, Size.cy), TPoint.Create(Size.cx, 0), TPoint(Size)]);
 end;
 
 procedure TGeneric2DObject.FreeContext(AContext: TCGContextBase);
@@ -408,7 +422,7 @@ end;
 
 procedure TSized2DObject.Draw(X, Y: Integer);
 begin
-  DrawWithSize(TPoint.Create(X, Y), TPoint.Create(Width, Height));
+  DrawWithSize(TPoint.Create(X, Y), TSize.Create(Width, Height));
 end;
 
 { TCGSolidBrush }
@@ -454,6 +468,21 @@ begin
   inherited Create;
   FOwner:= AOwner;
   FName:= AName;
+end;
+
+{ TScissorRect }
+
+constructor TScissorRect.Create(const R: TRect; ABottom: Integer);
+begin
+  Left:= R.Left;
+  Bottom:= ABottom;
+  Height:= R.Height;
+  Width:= R.Width;
+end;
+
+function TScissorRect.GetRight: Integer;
+begin
+  Result:= Left + Width;
 end;
 
 end.

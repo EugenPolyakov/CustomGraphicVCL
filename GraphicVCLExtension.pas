@@ -196,7 +196,8 @@ end;
 
 procedure TUpDownTemplate.DoRender(AContext: TCGContextBase; const R: TRect;
   UpHover, DownHover: Boolean);
-var p, s: TPoint;
+var p: TPoint;
+    s: TSize;
 begin
   p:= R.TopLeft;
   s.Create(ButtonWidth, R.Height div 2);
@@ -208,8 +209,8 @@ begin
     FButtonUp.Value.DrawWithSize(p, s);
   end;
 
-  p.Y:= p.Y + s.Y;
-  s.Y:= R.Height - s.Y;
+  p.Y:= p.Y + s.cY;
+  s.cY:= R.Height - s.cY;
   if DownHover then begin
     FButtonHoverDown.InitializeContext;
     FButtonHoverDown.Value.DrawWithSize(p, s);

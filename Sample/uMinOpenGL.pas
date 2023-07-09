@@ -14,7 +14,7 @@ type
     FDC: HDC;
   protected
     procedure DoScissorActive(IsActive: Boolean); override;
-    procedure SetScissor(const R: TRect); override;
+    procedure SetScissor(const R: TScissorRect); override;
   public
     constructor Create; override;
     procedure CreateContext(DC: HDC); override;
@@ -41,7 +41,8 @@ type
   public
     constructor Create(AOffset: DWORD; const AInfo: TTextData);
     procedure Draw(X: Integer; Y: Integer); override;
-    procedure DrawWithSize(const Pos: TPoint; const Size: TPoint); override;
+    procedure DrawWithSize(const Pos: TPoint; const Size: TSize); override;
+    procedure DrawFrame(X, Y: Integer; const ARect: TRect); virtual;
     procedure ActualizeContext; override;
   end;
 
@@ -83,7 +84,7 @@ type
 
   TTiledBilboardObject = class (TBilboardObject)
   public
-    procedure DrawWithSize(const Pos: TPoint; const Size: TPoint); override;
+    procedure DrawWithSize(const Pos: TPoint; const Size: TSize); override;
   end;
 
   TSolidBrush = class (TCGSolidBrush)
@@ -169,10 +170,10 @@ begin
   glClear(ClearBits);
 end;
 
-procedure TCustomContext.SetScissor(const R: TRect);
+procedure TCustomContext.SetScissor(const R: TScissorRect);
 begin
   inherited;
-  glScissor(r.Left, r.Top, r.Width, r.Height);
+  glScissor(r.Left, r.Bottom, r.Width, r.Height);
 end;
 
 procedure TCustomContext.SetViewPort(const R: TRect);
@@ -302,7 +303,12 @@ begin
   glPopAttrib;
 end;
 
-procedure TTextObject.DrawWithSize(const Pos, Size: TPoint);
+procedure TTextObject.DrawFrame(X, Y: Integer; const ARect: TRect);
+begin
+  Draw(X, Y);
+end;
+
+procedure TTextObject.DrawWithSize(const Pos: TPoint; const Size: TSize);
 begin
   Draw(Pos.X, Pos.Y);
 end;
@@ -466,10 +472,10 @@ end;
 
 { TTiledBilboardObject }
 
-procedure TTiledBilboardObject.DrawWithSize(const Pos, Size: TPoint);
+procedure TTiledBilboardObject.DrawWithSize(const Pos: TPoint; const Size: TSize);
 var b, t: TRect;
 begin
-  b.Create(Pos, Size.X, Size.Y);
+  b.Create(Pos, Size.cx, Size.cy);
   t.Create(0, 0, Width, Height);
   DrawBilboard(b, t);
 end;

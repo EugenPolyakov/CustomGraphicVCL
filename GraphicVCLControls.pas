@@ -76,15 +76,18 @@ type
     procedure SetMaxWidth(const Value: Integer);
   protected
     function DoInitContext(Flags: TChangedFlags): TChangedFlags; virtual;
+    procedure InitPrepared;
   public
     constructor Create(AFontGenerator: TCGFontGenerator); virtual;
     destructor Destroy; override;
     procedure Reset; virtual;
     procedure Render(X, Y: Integer); virtual;
+    procedure RenderFrame(X, Y: Integer; const ABound: TRect); virtual;
     function CalculateSize: TPoint;
     procedure DoInvalid; virtual;
     procedure InitContext; virtual;
     procedure FreeContext(AContext: TCGContextBase); virtual;
+    procedure FreePrepared(AContext: TCGContextBase);
     procedure FreeContextAndDestroy(AContext: TCGContextBase);
     function GetCursorPosition(X, Y: Integer): TTextPosition; overload; virtual;
     function GetCursorPosition(Index: Integer): TTextPosition; overload; virtual;
@@ -158,7 +161,7 @@ type
     property CharSet: string read FCharSet write SetCharSet;
   end;
 
-  TScrollBarElement = (sbeUp, sbeDown, sbePage, sbeBackground);
+  TScrollBarElement = (sbeBackground, sbeUp, sbeDown, sbePage);
   TScrollBarState = (sbsDefault, sbsActive, sbsPressed, sbsDisabled);
 
   TCGScrollBarTemplate = class (TSceneComponent)
@@ -207,6 +210,8 @@ type
     DoRepeat: Boolean;
     function GetOffset: Single; inline;
     procedure SetOffset(Value: Single); inline;
+    procedure AutoSrollGoUp; inline;
+    procedure AutoSrollGoDown; inline;
   public
     OnScrollOffsetChanged: TOnScrollOffsetChanged;
     Template: TCGScrollBarTemplate;
@@ -1676,7 +1681,7 @@ begin
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
     R:= GetClientRectWithOffset;
-    FBackground.Value.DrawWithSize(R.TopLeft, Point(R.Width, R.Height));
+    FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
   DoRender(Context, GetClientRectWithOffset);
   if FBorder <> nil then begin
@@ -2370,7 +2375,7 @@ begin
   R:= GetClientRectWithOffset;
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
-    FBackground.Value.DrawWithSize(R.TopLeft, Point(R.Width, R.Height));
+    FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
   AdjustClientRect(R);
   RenderChild(Context);
@@ -3136,12 +3141,8 @@ end;
 function TTextObjectBase.DoInitContext(Flags: TChangedFlags): TChangedFlags;
 begin
   if Flags - [cfColor] <> [] then begin
-    if FPreparedObject <> nil then begin
-      FPreparedObject.FreeContext(FFontGenerator.Scene.GraphicContext);
-      FPreparedObject.Destroy;
-    end;
-    FPreparedObject:= FFontGenerator.GenerateTextContext(FTextData);
-    FPreparedObject.InitContext;
+    FreePrepared(FFontGenerator.Scene.GraphicContext);
+    InitPrepared;
   end;
   if cfColor in Flags then
     FPreparedObject.Color:= FTextData.Color;
@@ -3159,14 +3160,21 @@ end;
 procedure TTextObjectBase.FreeContext(AContext: TCGContextBase);
 begin
   Reset;
-  if FPreparedObject <> nil then
-    FPreparedObject.FreeContext(AContext);
+  FreePrepared(AContext);
 end;
 
 procedure TTextObjectBase.FreeContextAndDestroy(AContext: TCGContextBase);
 begin
   FreeContext(AContext);
   Destroy;
+end;
+
+procedure TTextObjectBase.FreePrepared(AContext: TCGContextBase);
+begin
+  if FPreparedObject <> nil then begin
+    FPreparedObject.FreeContextAndRelease(AContext);
+    FPreparedObject:= nil;
+  end;
 end;
 
 function TTextObjectBase.GetCursorPosition(X, Y: Integer): TTextPosition;
@@ -3188,8 +3196,17 @@ procedure TTextObjectBase.InitContext;
 begin
   if FLastChanging <> [] then
     FLastChanging:= DoInitContext(FLastChanging);
-  if FPreparedObject <> nil then
-    FPreparedObject.ActualizeContext;
+  if FPreparedObject = nil then
+    InitPrepared;
+  FPreparedObject.ActualizeContext;
+end;
+
+procedure TTextObjectBase.InitPrepared;
+begin
+  Assert(FPreparedObject = nil);
+  FPreparedObject:= FFontGenerator.GenerateTextContext(FTextData);
+  FPreparedObject.Reference;
+  FPreparedObject.InitContext;
 end;
 
 procedure TTextObjectBase.Render(X, Y: Integer);
@@ -3198,6 +3215,15 @@ begin
     tlTop: FPreparedObject.Draw(X, Y);
     tlCenter: FPreparedObject.Draw(X, Y + (MaxHeight - FPreparedObject.Height) div 2);
     tlBottom: FPreparedObject.Draw(X, Y + (MaxHeight - FPreparedObject.Height));
+  end;
+end;
+
+procedure TTextObjectBase.RenderFrame(X, Y: Integer; const ABound: TRect);
+begin
+  case FTextData.Layout of
+    tlTop: FPreparedObject.DrawFrame(X, Y, ABound);
+    tlCenter: FPreparedObject.DrawFrame(X, Y + (MaxHeight - FPreparedObject.Height) div 2, ABound);
+    tlBottom: FPreparedObject.DrawFrame(X, Y + (MaxHeight - FPreparedObject.Height), ABound);
   end;
 end;
 
@@ -3763,10 +3789,9 @@ begin
   AdjustClientRect(R);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
-    FBackground.Value.DrawWithSize(R.TopLeft, Point(R.Width, R.Height));
+    FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
-  R.SetLocation(R.Left, Scene.Height - R.Bottom);
-  Context.PushScissor(R);
+  Context.PushScissor(TScissorRect.Create(R, Scene.Height - R.Bottom));
   try
     RenderChild(Context);
   finally
@@ -3845,7 +3870,8 @@ begin
 end;
 
 procedure TCGBorderTemplate.DoRender(AContext: TCGContextBase; const R: TRect);
-var b, s: TPoint;
+var b: TPoint;
+    s: TSize;
 begin
   s.Create(BorderSize, BorderSize);
   if FTopLeftCornerImage.Value <> nil then begin
@@ -3868,8 +3894,8 @@ begin
     FBottomRightCornerImage.InitializeContext;
     FBottomRightCornerImage.Value.DrawWithSize(b, s);
   end;
-  s.X:= R.Width - BorderSize * 2;
-  if s.X > 0 then begin
+  s.cX:= R.Width - BorderSize * 2;
+  if s.cX > 0 then begin
     if FTopBorderImage.Value <> nil then begin
       b.Create(R.Left + BorderSize, R.Top);
       FTopBorderImage.InitializeContext;
@@ -3882,7 +3908,7 @@ begin
     end;
   end;
   s.Create(BorderSize, R.Height - BorderSize * 2);
-  if s.Y > 0 then begin
+  if s.cY > 0 then begin
     if FLeftBorderImage.Value <> nil then begin
       b.Create(R.Left, R.Top + BorderSize);
       FLeftBorderImage.InitializeContext;
@@ -4075,8 +4101,27 @@ end;
 
 { TScrollBarStatus }
 
+procedure TScrollBarStatus.AutoSrollGoDown;
+var ofs: Integer;
+begin
+  ofs:= ScrollOffset;
+  Offset:= Offset - 0.1;
+  if (ofs = ScrollOffset) and (ScrollOffset > 0) then
+    Dec(ScrollOffset);
+end;
+
+procedure TScrollBarStatus.AutoSrollGoUp;
+var ofs: Integer;
+begin
+  ofs:= ScrollOffset;
+  Offset:= Offset + 0.1;
+  if (ofs = ScrollOffset) and (ScrollOffset < ScrollLength) then
+    Inc(ScrollOffset);
+end;
+
 procedure TScrollBarStatus.DoRender(AContext: TCGContextBase; X, Y: Integer);
-var b, t: TPoint;
+var b: TSize;
+    t: TPoint;
     l: Integer;
     button: ^TContextController<TGeneric2DObject>;
   i: TScrollBarState;
@@ -4086,7 +4131,7 @@ begin
     Template.FButtonBackground.InitializeContext;
     Template.FButtonBackground.Value.DrawWithSize(
         TPoint.Create(Bounds.Left + X, Bounds.Top + Y),
-        TPoint.Create(Bounds.Width, Bounds.Height));
+        Bounds.Size);
   end;
 
   button:= nil;
@@ -4112,7 +4157,7 @@ begin
   if IsVertical then begin
     if button.Value <> nil then begin
       button.InitializeContext;
-      t.Create(Bounds.Left + X, Bounds.Bottom - b.Y + Y);
+      t.Create(Bounds.Left + X, Bounds.Bottom - b.cY + Y);
       button.Value.DrawWithSize(t, b);
     end;
 
@@ -4134,7 +4179,7 @@ begin
   end else begin
     if button.Value <> nil then begin
       button.InitializeContext;
-      t.Create(Bounds.Right - b.Y + X, Bounds.Top + Y);
+      t.Create(Bounds.Right - b.cY + X, Bounds.Top + Y);
       button.Value.DrawWithSize(t, b);
     end;
 
@@ -4166,6 +4211,24 @@ end;
 
 function TScrollBarStatus.MouseDown(Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer): Boolean;
+
+  procedure ScrollUp;
+  begin
+    ElementState[sbeUp]:= sbsPressed;
+    RepeatTimerValue:= GetTickCount;
+    AutoSrollGoDown;
+    DoRepeat:= False;
+    Captured:= sbeUp;
+  end;
+
+  procedure ScrollDown;
+  begin
+    ElementState[sbeDown]:= sbsPressed;
+    RepeatTimerValue:= GetTickCount;
+    AutoSrollGoUp;
+    DoRepeat:= False;
+    Captured:= sbeDown;
+  end;
 var
   i: TScrollBarElement;
   l, ofs: Integer;
@@ -4178,18 +4241,10 @@ begin
       Exit(False);
     if IsVertical then begin
       if Y < Template.ButtonSize then begin
-        ElementState[sbeUp]:= sbsPressed;
-        RepeatTimerValue:= GetTickCount;
-        Offset:= Offset - 0.1;
-        DoRepeat:= False;
-        Captured:= sbeUp;
+        ScrollUp;
         Exit(True);
       end else if (Y >= Bounds.Bottom - Template.ButtonSize) and (Y < Bounds.Bottom) then begin
-        ElementState[sbeDown]:= sbsPressed;
-        RepeatTimerValue:= GetTickCount;
-        Offset:= Offset + 0.1;
-        DoRepeat:= False;
-        Captured:= sbeDown;
+        ScrollDown;
         Exit(True);
       end else begin
         l:= Bounds.Height - Template.ButtonSize * 3;
@@ -4207,18 +4262,10 @@ begin
       end;
     end else begin
       if X < Template.ButtonSize then begin
-        ElementState[sbeUp]:= sbsPressed;
-        RepeatTimerValue:= GetTickCount;
-        Offset:= Offset - 0.1;
-        DoRepeat:= False;
-        Captured:= sbeUp;
+        ScrollUp;
         Exit(True);
       end else if (X >= Bounds.Right - Template.ButtonSize) and (X < Bounds.Right) then begin
-        ElementState[sbeDown]:= sbsPressed;
-        RepeatTimerValue:= GetTickCount;
-        Offset:= Offset + 0.1;
-        DoRepeat:= False;
-        Captured:= sbeDown;
+        ScrollDown;
         Exit(True);
       end else begin
         l:= Bounds.Width - Template.ButtonSize * 3;
@@ -4323,9 +4370,9 @@ begin
       DoRepeat:= True;
     if DoRepeat then begin
       if ElementState[sbeUp] = sbsPressed then
-        Offset:= Offset - 0.1
+        AutoSrollGoDown
       else if ElementState[sbeDown] = sbsPressed then
-        Offset:= Offset + 0.1;
+        AutoSrollGoUp;
     end;
   end;
 end;

@@ -232,6 +232,7 @@ type
     procedure WMLButtonDblClk(var Message: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
   protected
     FScrollBars: THVScrolls;
+    property ScrollRealignNeeded: Boolean read FScrollRealignNeeded;
     function GetScrollRect: TRect; virtual;
     procedure BeginReAlignScrolls;
     procedure EndReAlignScrolls;
@@ -423,6 +424,10 @@ type
     FColWidths: array of Integer;
     FActiveLine: Integer;
     FAutoScroll: Boolean;
+
+    //render optimisation
+    FLastVericalScrollOffset: Integer;
+
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
@@ -799,11 +804,10 @@ begin
 end;
 
 procedure TCGEdit.DoRender(Context: TCGContextBase; R: TRect);
-var sc: TRect;
+var sc: TScissorRect;
     rStart, rEnd: TTextPosition;
 begin
-  sc:= R;
-  sc.SetLocation(R.Left, Scene.Height - R.Bottom);
+  sc:= TScissorRect.Create(R, Scene.Height - R.Bottom);
   Context.PushScissor(sc);
   try
     if (FText <> nil) and FText.IsInvalid then begin
@@ -831,7 +835,7 @@ begin
         EnsureSelectionBrushReady;
         FSelectionBrush.Value.DrawWithSize(
             TPoint.Create(R.Left + rStart.X - FTextOffset, R.Top + (R.Height - Font.LineHeight) div 2),
-            TPoint.Create(rEnd.X - rStart.X, Font.LineHeight));
+            TSize.Create(rEnd.X - rStart.X, Font.LineHeight));
       end;
     end else if IsFocused then begin
       if FCursorBrush.Value = nil then
@@ -839,7 +843,7 @@ begin
       FCursorBrush.InitializeContext;
       FCursorBrush.Value.DrawWithSize(
           TPoint.Create(R.Left + FSelStart.X - FTextOffset, R.Top + (R.Height - Font.LineHeight) div 2),
-          TPoint.Create(2, Font.LineHeight));
+          TSize.Create(2, Font.LineHeight));
     end;
     FText.InitContext;
     FText.Render(R.Left - FTextOffset, R.Top);
@@ -1317,7 +1321,7 @@ var
   i: Integer;
   curHeight: Integer;
   p: TPoint;
-  b: TRect;
+  b: TScissorRect;
 begin
   //inherited DoRender(Context, R);
   RecalculateSize(R);
@@ -1329,8 +1333,7 @@ begin
   FScrollBars.AdjustClientRect(R);
 
   Inc(R.Left);
-  p.Create(R.Left, Scene.Height - R.Bottom);
-  b.Create(p, R.Width, R.Height);
+  b.Create(R, Scene.Height - R.Bottom);
   Context.PushScissor(b);
   try
     Dec(R.Left, FScrollBars.Horizontal.ScrollOffset);
@@ -1523,62 +1526,111 @@ begin
 end;
 
 procedure TCGStringGrid.DoRender(Context: TCGContextBase; R: TRect);
-var Z: TRect;
-  i: Integer;
+var Z: TScissorRect;
   tl: TPoint;
   l: TList<TTextObjectBase>;
+  FrameRect: TRect;
+  xOfs: Integer;
+  firstColumn: Integer;
 
-  procedure DrawRow;
+  function DrawRow(i: Integer): Boolean;
   var j: Integer;
       c: TTextObjectBase;
   begin
-    Z.Left:= R.Left;
-    for j := 0 to FColCount - 1 do begin
+    Dec(Z.Bottom, FRowHeights[i]);
+
+    Result:= FrameRect.Bottom > R.Bottom;
+    if Result then
+      FrameRect.Bottom:= R.Bottom;
+    if (FActiveLine = i) and (FHoverBackground.Value <> nil) then begin
+      FHoverBackground.InitializeContext;
+      FHoverBackground.Value.DrawWithSize(FrameRect.TopLeft, FrameRect.Size);
+    end;
+
+    Z.Left:= xOfs;
+    for j := firstColumn to FColCount - 1 do begin
       c:= l[j];
       if c <> nil then begin
         Z.Width:= FColWidths[j];
         Context.PushScissor(Z);
         try
           c.InitContext;
-          c.Render(Z.Left, tl.Y);
+          c.RenderFrame(Z.Left, tl.Y, FrameRect);
         finally
           Context.PopScissor;
         end;
       end;
-      Z.Offset(FColWidths[j], 0);
+      Inc(Z.Left, FColWidths[j]);
+    end;
+    Inc(tl.Y, FRowHeights[i]);
+  end;
+
+  procedure FreeRow;
+  var
+    j: Integer;
+    c: TTextObjectBase;
+  begin
+    for j := 0 to l.Count - 1 do begin
+      c:= l[j];
+      if c <> nil then
+        c.FreePrepared(Context);
     end;
   end;
+var
+  i: Integer;
+  j, frameHeight, beginDrawIndex, endDrawIndex: Integer;
+  needFreeUnused: Boolean;
 begin
-  Z:= R;
+  Z.Create(R, Scene.Height - R.Bottom);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
-    FBackground.Value.DrawWithSize(R.TopLeft, Point(R.Width, R.Height));
+    FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
   BeginReAlignScrolls;
   try
     PrepareRows;
   finally
+    needFreeUnused:= ScrollRealignNeeded;
     EndReAlignScrolls;
+
+    if FAutoScroll then
+      FScrollBars.DoVericalOffset(-FScrollBars.Vertical.ScrollLength);
+
+    needFreeUnused:= needFreeUnused or (FScrollBars.Vertical.ScrollOffset <> FLastVericalScrollOffset);
   end;
 
-  Z.SetLocation(Z.Left, Scene.Height - R.Bottom);
+  FLastVericalScrollOffset:= FScrollBars.Vertical.ScrollOffset;
+
   Context.PushScissor(Z);
   try
     tl:= R.TopLeft;
     Dec(tl.X, FScrollBars.Horizontal.ScrollOffset);
     if FHeaderBackground.Value <> nil then begin
       FHeaderBackground.InitializeContext;
-      FHeaderBackground.Value.DrawWithSize(tl, Point(ActualWidth, HeaderHeight));
+      FHeaderBackground.Value.DrawWithSize(tl, TSize.Create(ActualWidth, HeaderHeight));
     end;
 
-    Z.Create(tl.X, Scene.Height - R.Top - HeaderHeight, R.Left, Scene.Height - R.Top);
-    for i := 0 to High(FHeaderTitles) do begin
+    firstColumn:= 0;
+    xOfs:= tl.X;
+    while firstColumn < Length(FHeaderTitles) do begin
+      if xOfs + FColWidths[firstColumn] > R.Left then
+        Break;
+      Inc(xOfs, FColWidths[firstColumn]);
+      Inc(firstColumn);
+    end;
+
+    tl.X:= xOfs;
+    Z.Left:= xOfs;
+    Z.Bottom:= Scene.Height - R.Top - HeaderHeight;
+    Z.Height:= HeaderHeight;
+
+    for i := firstColumn to High(FHeaderTitles) do begin
       Z.Width:= FColWidths[i];
-      if (FHeaderTitles[i] <> nil) and (Z.Right > R.Left) then begin
+      if FHeaderTitles[i] <> nil then begin
         FHeaderTitles[i].InitContext;
         Context.PushScissor(Z);
         try
-          FHeaderTitles[i].Render(Z.Left, R.Top);
+          FHeaderTitles[i].Render(tl.X, tl.Y);
         finally
           Context.PopScissor;
         end;
@@ -1587,53 +1639,59 @@ begin
     end;
 
     Inc(R.Top, HeaderHeight);
-    tl:= R.TopLeft;
-
-    if FAutoScroll then
-      FScrollBars.DoVericalOffset(-FScrollBars.Vertical.ScrollLength);
+    tl.X:= xOfs;
+    tl.Y:= R.Top;
 
     Dec(tl.Y, FScrollBars.Vertical.ScrollOffset);
-    Inc(Z.Top, FScrollBars.Vertical.ScrollOffset);
+    Inc(Z.Bottom, FScrollBars.Vertical.ScrollOffset);
     i:= 0;
     while (i < FRowCount) and (tl.Y + FRowHeights[i] <= R.Top) do begin
-      Dec(Z.Top, FRowHeights[i]);
+      Dec(Z.Bottom, FRowHeights[i]);
       Inc(tl.Y, FRowHeights[i]);
       Inc(i);
     end;
 
-    if tl.Y < R.Top then begin
-      Dec(Z.Top, FRowHeights[i]);
-      Z.Height:= tl.Y + FRowHeights[i] - R.Top;
-      l:= FCells[i];
+    beginDrawIndex:= i;
+
+    while (i < FRowCount) and (FCells[i] = nil) do
+      Inc(i);
+
+    if (tl.Y < R.Top) and (i < FRowCount) then begin
+      l:= FCells[i]; //l used in DrawRow
+      FrameRect.Top:= R.Top;
+      FrameRect.Bottom:= FRowHeights[i] + tl.Y;
+      Z.Height:= FRowHeights[i] - (FrameRect.Top - tl.Y);
+      DrawRow(i);
+      Inc(i);
+    end;
+
+    while (i < FRowCount) and (tl.Y < R.Bottom) do begin
+      l:= FCells[i]; //l used in DrawRow
       if l <> nil then begin
-        if (FActiveLine = i) and (FHoverBackground.Value <> nil) then begin
-          FHoverBackground.InitializeContext;
-          FHoverBackground.Value.DrawWithSize(R.TopLeft, Point(R.Width, Z.Height));
-        end;
-        DrawRow;
+        FrameRect.Top:= tl.Y;
+        Z.Height:= FRowHeights[i];
+        FrameRect.Height:= FRowHeights[i];
+        DrawRow(i);
       end;
-      Inc(tl.Y, FRowHeights[i]);
       Inc(i);
     end;
 
-    for i := i to FRowCount - 1 do begin
-      l:= FCells[i];
-      if l = nil then
-        Continue;
-      if (FActiveLine = i) and (FHoverBackground.Value <> nil) then begin
-        FHoverBackground.InitializeContext;
-        FHoverBackground.Value.DrawWithSize(tl, Point(R.Width, FRowHeights[i]));
+    endDrawIndex:= i;
+
+    if needFreeUnused then begin
+      frameHeight:= endDrawIndex - beginDrawIndex;
+      if frameHeight > 0 then begin
+        for j := 0 to beginDrawIndex - frameHeight do begin
+          l:= FCells[j];
+          if l <> nil then
+            FreeRow;
+        end;
+        for j := endDrawIndex + frameHeight to FRowCount - 1 do begin
+          l:= FCells[j];
+          if l <> nil then
+            FreeRow;
+        end;
       end;
-      if tl.Y + FRowHeights[i] > R.Bottom then begin
-        Dec(Z.Top, R.Bottom - tl.Y);
-        Z.Height:= R.Bottom - tl.Y;
-        DrawRow;
-        Break;
-      end;
-      Dec(Z.Top, FRowHeights[i]);
-      Z.Height:= FRowHeights[i];
-      DrawRow;
-      Inc(tl.Y, FRowHeights[i]);
     end;
   finally
     Context.PopScissor;
@@ -2267,8 +2325,7 @@ procedure TCGListBox.DoRender(Context: TCGContextBase; R: TRect);
 var
   i: Integer;
   curHeight: Integer;
-  p: TPoint;
-  b: TRect;
+  b: TScissorRect;
 begin
   if Font = nil then
     Exit;
@@ -2286,8 +2343,7 @@ begin
   FScrollBars.AdjustClientRect(R);
 
   Inc(R.Left);
-  p.Create(R.Left, Scene.Height - R.Bottom);
-  b.Create(p, R.Width, R.Height);
+  b.Create(R, Scene.Height - R.Bottom);
   Context.PushScissor(b);
   try
     Dec(R.Left, FScrollBars.Horizontal.ScrollOffset);
@@ -2297,7 +2353,7 @@ begin
       if curHeight + Font.LineHeight > R.Top then begin
         if (i = FItemIndex) and (FSelectionBackground.Value <> nil) then begin
           FSelectionBackground.InitializeContext;
-          FSelectionBackground.Value.DrawWithSize(Point(R.Left, curHeight), Point(R.Width, Font.LineHeight));
+          FSelectionBackground.Value.DrawWithSize(Point(R.Left, curHeight), TSize.Create(R.Width, Font.LineHeight));
         end;
         TCGListBoxStrings(FItems).FLines[i].Text.Render(R.Left, curHeight);
       end;
@@ -2715,7 +2771,6 @@ end;
 procedure TCGButton.DoRender(Context: TCGContextBase; R: TRect);
 var t: TRect;
     p: ^TContextController<TCGBilboard>;
-    s: TPoint;
 begin
   p:= nil;
   case FState of
@@ -2754,7 +2809,7 @@ begin
   end;
   EnsureTextReady;
   FText.InitContext;
-  s:= FText.CalculateSize;
+  //s:= FText.CalculateSize;
   FText.Render(R.Left, R.Top);
 end;
 
