@@ -66,6 +66,7 @@ type
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+    procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure SetDefaultPicture(const Value: TCGBilboard);
     procedure SetDisabledPicture(const Value: TCGBilboard);
     procedure SetHoverPicture(const Value: TCGBilboard);
@@ -467,6 +468,7 @@ type
       X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure OnScroll(const Scroll: TScrollBarStatus); override;
+    procedure ChangeScale(M: Integer; D: Integer); override;
   public
     procedure FreeContext(Context: TCGContextBase); override;
     destructor Destroy; override;
@@ -1407,6 +1409,19 @@ begin
   end;
 end;
 
+procedure TCGStringGrid.ChangeScale(M, D: Integer);
+var oldWidth: Integer;
+  i: Integer;
+begin
+  oldWidth:= Width;
+
+  inherited ChangeScale(M, D);
+
+  if (M <> D) and (oldWidth <> Width) then
+    for i := 0 to ColCount - 1 do
+      ColWidths[i]:= MulDiv(ColWidths[i], M, D);
+end;
+
 procedure TCGStringGrid.CMEnabledChanged(var Message: TMessage);
 begin
   inherited;
@@ -1527,10 +1542,9 @@ end;
 
 procedure TCGStringGrid.DoRender(Context: TCGContextBase; R: TRect);
 var Z: TScissorRect;
-  tl: TPoint;
   l: TList<TTextObjectBase>;
   FrameRect: TRect;
-  xOfs: Integer;
+  xOfs, yOfs: Integer;
   firstColumn: Integer;
 
   function DrawRow(i: Integer): Boolean;
@@ -1555,14 +1569,14 @@ var Z: TScissorRect;
         Context.PushScissor(Z);
         try
           c.InitContext;
-          c.RenderFrame(Z.Left, tl.Y, FrameRect);
+          c.RenderFrame(Z.Left, yOfs, FrameRect);
         finally
           Context.PopScissor;
         end;
       end;
       Inc(Z.Left, FColWidths[j]);
     end;
-    Inc(tl.Y, FRowHeights[i]);
+    Inc(yOfs, FRowHeights[i]);
   end;
 
   procedure FreeRow;
@@ -1603,15 +1617,17 @@ begin
 
   Context.PushScissor(Z);
   try
-    tl:= R.TopLeft;
-    Dec(tl.X, FScrollBars.Horizontal.ScrollOffset);
+    FrameRect.Create(R.TopLeft, ActualWidth, HeaderHeight);
+    FrameRect.Offset(-FScrollBars.Horizontal.ScrollOffset, 0);
+    //Dec(tl.X, FScrollBars.Horizontal.ScrollOffset);
     if FHeaderBackground.Value <> nil then begin
       FHeaderBackground.InitializeContext;
-      FHeaderBackground.Value.DrawWithSize(tl, TSize.Create(ActualWidth, HeaderHeight));
+      FHeaderBackground.Value.DrawWithSize(FrameRect.TopLeft, FrameRect.Size);
     end;
 
     firstColumn:= 0;
-    xOfs:= tl.X;
+    xOfs:= FrameRect.Left;
+    yOfs:= FrameRect.Top;
     while firstColumn < Length(FHeaderTitles) do begin
       if xOfs + FColWidths[firstColumn] > R.Left then
         Break;
@@ -1619,7 +1635,6 @@ begin
       Inc(firstColumn);
     end;
 
-    tl.X:= xOfs;
     Z.Left:= xOfs;
     Z.Bottom:= Scene.Height - R.Top - HeaderHeight;
     Z.Height:= HeaderHeight;
@@ -1630,7 +1645,7 @@ begin
         FHeaderTitles[i].InitContext;
         Context.PushScissor(Z);
         try
-          FHeaderTitles[i].Render(tl.X, tl.Y);
+          FHeaderTitles[i].Render(Z.Left, yOfs);
         finally
           Context.PopScissor;
         end;
@@ -1639,15 +1654,14 @@ begin
     end;
 
     Inc(R.Top, HeaderHeight);
-    tl.X:= xOfs;
-    tl.Y:= R.Top;
+    yOfs:= R.Top;
 
-    Dec(tl.Y, FScrollBars.Vertical.ScrollOffset);
+    Dec(yOfs, FScrollBars.Vertical.ScrollOffset);
     Inc(Z.Bottom, FScrollBars.Vertical.ScrollOffset);
     i:= 0;
-    while (i < FRowCount) and (tl.Y + FRowHeights[i] <= R.Top) do begin
+    while (i < FRowCount) and (yOfs + FRowHeights[i] <= R.Top) do begin
       Dec(Z.Bottom, FRowHeights[i]);
-      Inc(tl.Y, FRowHeights[i]);
+      Inc(yOfs, FRowHeights[i]);
       Inc(i);
     end;
 
@@ -1656,19 +1670,19 @@ begin
     while (i < FRowCount) and (FCells[i] = nil) do
       Inc(i);
 
-    if (tl.Y < R.Top) and (i < FRowCount) then begin
+    if (yOfs < R.Top) and (i < FRowCount) then begin
       l:= FCells[i]; //l used in DrawRow
       FrameRect.Top:= R.Top;
-      FrameRect.Bottom:= FRowHeights[i] + tl.Y;
-      Z.Height:= FRowHeights[i] - (FrameRect.Top - tl.Y);
+      FrameRect.Bottom:= FRowHeights[i] + yOfs;
+      Z.Height:= FRowHeights[i] - (FrameRect.Top - yOfs);
       DrawRow(i);
       Inc(i);
     end;
 
-    while (i < FRowCount) and (tl.Y < R.Bottom) do begin
+    while (i < FRowCount) and (yOfs < R.Bottom) do begin
       l:= FCells[i]; //l used in DrawRow
       if l <> nil then begin
-        FrameRect.Top:= tl.Y;
+        FrameRect.Top:= yOfs;
         Z.Height:= FRowHeights[i];
         FrameRect.Height:= FRowHeights[i];
         DrawRow(i);
@@ -2904,6 +2918,15 @@ end;
 procedure TCGButton.SetPressedPicture(const Value: TCGBilboard);
 begin
   FPressedPicture.UpdateValue(Value, Scene);
+end;
+
+procedure TCGButton.WMWindowPosChanged(var Message: TWMWindowPosChanged);
+begin
+  if FText <> nil then begin
+    FText.MaxHeight:= Height;
+    FText.MaxWidth:= Width;
+  end;
+  Invalidate;
 end;
 
 end.
