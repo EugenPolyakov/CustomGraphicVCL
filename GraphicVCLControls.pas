@@ -50,7 +50,7 @@ type
   public
     Value: T;
     property Initialised: Boolean read FInitialised;
-    procedure InitializeContext; inline;
+    procedure InitializeContext; //inline;
     procedure FreeContext(AContext: TCGContextBase); inline;
     procedure UpdateValue(AValue: T; Scene: TCGScene); //inline;
   end;
@@ -1678,12 +1678,12 @@ end;
 procedure TCGControl.Render(Context: TCGContextBase);
 var R: TRect;
 begin
+  R:= GetClientRectWithOffset;
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
-    R:= GetClientRectWithOffset;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
-  DoRender(Context, GetClientRectWithOffset);
+  DoRender(Context, R);
   if FBorder <> nil then begin
     R.Create(TCGWinControl(Parent).GetClientOffset, Width, Height);
     R.Offset(Left, Top);
@@ -1699,6 +1699,7 @@ end;
 procedure TCGControl.SetBackground(const Value: TGeneric2DObject);
 begin
   FBackground.UpdateValue(Value, Scene);
+  Invalidate;
 end;
 
 procedure TCGControl.SetBorder(const Value: TCGBorderTemplate);

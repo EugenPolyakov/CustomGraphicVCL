@@ -402,7 +402,6 @@ type
 
   TCGStringGrid = class (TScrolledWithFont)
   private
-    FBackground: TContextController<TGeneric2DObject>;
     FHeaderBackground: TContextController<TGeneric2DObject>;
     FHoverBackground: TContextController<TGeneric2DObject>;
     FDefaultColWidth: Integer;
@@ -437,7 +436,6 @@ type
     function GetColWidths(Index: Integer): Integer;
     function GetHeaderTitle(Index: Integer): string;
     procedure SetAlignment(const Value: TAlignment);
-    procedure SetBackground(const Value: TGeneric2DObject);
     procedure SetCells(ACol, ARow: Integer; const Value: string);
     procedure SetColCount(const Value: Integer);
     procedure SetColWidths(Index: Integer; const Value: Integer);
@@ -474,7 +472,6 @@ type
     destructor Destroy; override;
     procedure Exchange(A, B: Integer);
     constructor Create(AOwner: TComponent); override;
-    property Background: TGeneric2DObject read FBackground.Value write SetBackground;
     property HeaderBackground: TGeneric2DObject read FHeaderBackground.Value write SetHeaderBackground;
     property HoverBackground: TGeneric2DObject read FHoverBackground.Value write SetHoverBackground;
     property HeaderTitle[Index: Integer]: string read GetHeaderTitle write SetHeaderTitle;
@@ -1464,7 +1461,7 @@ begin
 
       for i := 0 to FCells.Count - 1 do begin
         l:= FCells[i];
-        if FCells[i] <> nil then
+        if l <> nil then
           for j := 0 to l.Count - 1 do
             if l[j] <> nil then begin
               t:= Font.GenerateText;
@@ -1522,7 +1519,7 @@ end;
 destructor TCGStringGrid.Destroy;
 var i: Integer;
 begin
-  FCells.Free;
+  FCells.Clear;
 
   for i := 0 to High(FHeaderTitles) do
     if FHeaderTitles[i] <> nil then
@@ -1533,11 +1530,12 @@ begin
 
   FHeaderTitles:= nil;
 
-  FBackground.UpdateValue(nil, Scene);
   FHeaderBackground.UpdateValue(nil, Scene);
   FHoverBackground.UpdateValue(nil, Scene);
 
   inherited;
+
+  FCells.Free;
 end;
 
 procedure TCGStringGrid.DoRender(Context: TCGContextBase; R: TRect);
@@ -1596,10 +1594,6 @@ var
   needFreeUnused: Boolean;
 begin
   Z.Create(R, Scene.Height - R.Bottom);
-  if FBackground.Value <> nil then begin
-    FBackground.InitializeContext;
-    FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
-  end;
   BeginReAlignScrolls;
   try
     PrepareRows;
@@ -1619,7 +1613,6 @@ begin
   try
     FrameRect.Create(R.TopLeft, ActualWidth, HeaderHeight);
     FrameRect.Offset(-FScrollBars.Horizontal.ScrollOffset, 0);
-    //Dec(tl.X, FScrollBars.Horizontal.ScrollOffset);
     if FHeaderBackground.Value <> nil then begin
       FHeaderBackground.InitializeContext;
       FHeaderBackground.Value.DrawWithSize(FrameRect.TopLeft, FrameRect.Size);
@@ -1744,7 +1737,6 @@ begin
     if FHeaderTitles[i] <> nil then
       FHeaderTitles[i].FreeContext(Context);
 
-  FBackground.FreeContext(Context);
   FHeaderBackground.FreeContext(Context);
   FHoverBackground.FreeContext(Context);
 end;
@@ -1928,12 +1920,6 @@ begin
     FAutoScroll := Value;
     Invalidate;
   end;
-end;
-
-procedure TCGStringGrid.SetBackground(const Value: TGeneric2DObject);
-begin
-  FBackground.UpdateValue(Value, Scene);
-  Invalidate;
 end;
 
 procedure TCGStringGrid.SetCells(ACol, ARow: Integer; const Value: string);
