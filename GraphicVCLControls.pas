@@ -10,15 +10,25 @@ uses
 const
   CM_PARENTSTATECHANGED      = CM_BASE + 90;
   CM_FONTGENERATORCHANGED    = CM_BASE + 91;
-  CM_FONTGENERATORDESTROY    = CM_BASE + 92;
+  CM_COMPONENTDESTROYING     = CM_BASE + 92;
   CM_REPEATTIMER             = CM_BASE + 93;
   CM_BORDERSIZECHANGED       = CM_BASE + 94;
+  CM_BORDERUPDATED           = CM_BASE + 95;
 
 type
   TCMFontGeneratorChanged = record
     Msg: Cardinal;
     IsFontChanged: LongBool;
     IsFontChangedFiller: TDWordFiller;
+    FontObject: Pointer;
+    Result: LRESULT;
+  end;
+
+  TSceneComponent = class;
+
+  TCMComponentDestoyng = record
+    Msg: Cardinal;
+    ComponentObject: TSceneComponent;
     LParam: LPARAM;
     Result: LRESULT;
   end;
@@ -104,17 +114,18 @@ type
   end;
 
   TSceneComponent = class (TComponent)
-  private
+  strict private
     FScene: TCGScene;
-    FSubscribers: TList<TNotifyEvent>;
+    FSubscribers: TList<TControl>;
     procedure SetScene(const Value: TCGScene);
   protected
-    procedure NotifySubscribers;
     function FindScene(AWin: TWinControl): Boolean;
     procedure ContextEvent(AContext: TCGContextBase; IsInitialization: Boolean); virtual;
+    procedure ClearSubscribers;
+    procedure NotifySubscribers(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM);
   public
-    procedure Subscribe(Event: TNotifyEvent);
-    procedure Unsubscribe(Event: TNotifyEvent);
+    procedure Subscribe(AControl: TControl);
+    procedure Unsubscribe(AControl: TControl);
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
@@ -124,7 +135,6 @@ type
   TCGFontGenerator = class (TSceneComponent)
   private
     FFont: TFont;
-    FSubscribers: TList<TControl>;
     FGeneric2DObjectClass: TGeneric2DObjectClass;
     FFontGeneratorClass: TCGFontGeneratorClass;
     FFontGenerator: TCGFontGeneratorBase;
@@ -143,10 +153,6 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure SubscribeOnChange(AControl: TCGControl); overload;
-    procedure SubscribeOnChange(AScene: TCGScene); overload;
-    procedure UnSubscribeOnChange(AControl: TCGControl); overload;
-    procedure UnSubscribeOnChange(AScene: TCGScene); overload;
     function GenerateText: TTextObjectBase;
     function GenerateTextContext(const ATextData: TTextData): TSimple2DText;
     function GetCursorPosition(AText: TTextObjectBase; X, Y: Integer): TTextPosition; overload; virtual;
@@ -272,6 +278,7 @@ type
     procedure SetTopBorderImage(const Value: TGeneric2DObject);
     procedure SetTopLeftCornerImage(const Value: TGeneric2DObject);
     procedure SetTopRightCornerImage(const Value: TGeneric2DObject);
+    procedure NotifySubscribers; inline;
   protected
     procedure ContextEvent(AContext: TCGContextBase; IsInitialization: Boolean); override;
   public
@@ -302,8 +309,10 @@ type
     procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
     procedure CMEnabledChanged(var Message: TMessage); message CM_ENABLEDCHANGED;
+    procedure CMComponentDestroying(var Message: TCMComponentDestoyng); message CM_COMPONENTDESTROYING;
     procedure CMParentStateChanged(var Message: TMessage); message CM_PARENTSTATECHANGED;
     procedure CMBorderSizeChanged(var Message: TBorderSizeChanged); message CM_BORDERSIZECHANGED;
+    procedure CMBorderChanged(var Message: TMessage); message CM_BORDERCHANGED;
     procedure WMPaint(var Message: TWMPaint); message WM_PAINT;
     procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -354,7 +363,6 @@ type
     function IsControlMouseMsg(var Message: TWMMouse): Boolean;
     procedure WndProc(var Message: TMessage); override;
     procedure ControlWndProc(var Message: TMessage);
-    procedure DoUpdateBorder(Sender: TObject); virtual;
     procedure RenderChild(Context: TCGContextBase);
     property ParentFont: Boolean read FParentFont write SetParentFont default True;
     property OnFreeContext: TNotifyEvent read FOnFreeContext write FOnFreeContext;
@@ -386,7 +394,9 @@ type
     procedure CMMouseWheel(var Message: TCMMouseWheel); message CM_MOUSEWHEEL;
     procedure CMMouseEnter(var msg: TMessage); message CM_MOUSEENTER;
     procedure CMMouseLeave(var msg: TMessage); message CM_MOUSELEAVE;
+    procedure CMComponentDestroying(var Message: TCMComponentDestoyng); message CM_COMPONENTDESTROYING;
     procedure CMBorderSizeChanged(var Message: TBorderSizeChanged); message CM_BORDERSIZECHANGED;
+    procedure CMBorderChanged(var Message: TMessage); message CM_BORDERCHANGED;
     function GetCanvas: TCanvas;
     function GetScene: TCGScene;
     procedure SetBorder(const Value: TCGBorderTemplate);
@@ -398,7 +408,6 @@ type
     property Canvas: TCanvas read GetCanvas;
     procedure DesignPaint; virtual;
     procedure DoRender(Context: TCGContextBase; R: TRect); virtual; abstract;
-    procedure DoUpdateBorder(Sender: TObject); virtual;
     procedure SetParent(AParent: TWinControl); override;
     procedure DoLostFocus; virtual;
     procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
@@ -1534,6 +1543,11 @@ end;
 
 { TCGControl }
 
+procedure TCGControl.CMBorderChanged(var Message: TMessage);
+begin
+  Invalidate;
+end;
+
 procedure TCGControl.CMBorderSizeChanged(var Message: TBorderSizeChanged);
 begin
   if (FBorder = TCGBorderTemplate(Message.BorderTemplate)) and
@@ -1542,6 +1556,12 @@ begin
         Padding.Top - Message.OldValue + FBorder.BorderSize,
         Padding.Right - Message.OldValue + FBorder.BorderSize,
         Padding.Bottom - Message.OldValue + FBorder.BorderSize);
+end;
+
+procedure TCGControl.CMComponentDestroying(var Message: TCMComponentDestoyng);
+begin
+  if FBorder = Message.ComponentObject then
+    Border:= nil;
 end;
 
 procedure TCGControl.CMMouseEnter(var msg: TMessage);
@@ -1596,18 +1616,13 @@ begin
   FBackground.UpdateValue(nil, Scene);
   FPadding.Free;
   if FBorder <> nil then
-    FBorder.Unsubscribe(DoUpdateBorder);
+    FBorder.Unsubscribe(Self);
   inherited;
 end;
 
 procedure TCGControl.DoLostFocus;
 begin
 
-end;
-
-procedure TCGControl.DoUpdateBorder(Sender: TObject);
-begin
-  Invalidate;
 end;
 
 procedure TCGControl.FreeContext(Context: TCGContextBase);
@@ -1707,13 +1722,13 @@ var s: Integer;
 begin
   if FBorder <> Value then begin
     if FBorder <> nil then begin
-      FBorder.Unsubscribe(DoUpdateBorder);
+      FBorder.Unsubscribe(Self);
       s:= FBorder.BorderSize;
     end else
       s:= 0;
     FBorder := Value;
     if FBorder <> nil then begin
-      FBorder.Subscribe(DoUpdateBorder);
+      FBorder.Subscribe(Self);
       Dec(s, FBorder.BorderSize);
     end;
     if (s <> 0) and ([csLoading, csDesigning] * ComponentState = []) then
@@ -1782,6 +1797,11 @@ begin
   NotifyControls(CM_PARENTFONTCHANGED);
 end;
 
+procedure TCGWinControl.CMBorderChanged(var Message: TMessage);
+begin
+  Invalidate;
+end;
+
 procedure TCGWinControl.CMBorderSizeChanged(var Message: TBorderSizeChanged);
 var i: Integer;
 begin
@@ -1796,6 +1816,12 @@ begin
     Controls[i].Perform(CM_BORDERSIZECHANGED, Message.BorderTemplate, Message.OldValue);
 
   Invalidate;
+end;
+
+procedure TCGWinControl.CMComponentDestroying(var Message: TCMComponentDestoyng);
+begin
+  if FBorder = Message.ComponentObject then
+    Border:= nil;
 end;
 
 procedure TCGWinControl.CMEnabledChanged(var Message: TMessage);
@@ -2164,13 +2190,8 @@ begin
   FCanvas.Free;
   FBackground.UpdateValue(nil, Scene);
   if FBorder <> nil then
-    FBorder.Unsubscribe(DoUpdateBorder);
+    FBorder.Unsubscribe(Self);
   inherited;
-end;
-
-procedure TCGWinControl.DoUpdateBorder(Sender: TObject);
-begin
-  Invalidate;
 end;
 
 procedure TCGWinControl.FreeContext(Context: TCGContextBase);
@@ -2422,13 +2443,13 @@ var s: Integer;
 begin
   if FBorder <> Value then begin
     if FBorder <> nil then begin
-      FBorder.Unsubscribe(DoUpdateBorder);
+      FBorder.Unsubscribe(Self);
       s:= FBorder.BorderSize;
     end else
       s:= 0;
     FBorder := Value;
     if FBorder <> nil then begin
-      FBorder.Subscribe(DoUpdateBorder);
+      FBorder.Subscribe(Self);
       Dec(s, FBorder.BorderSize);
     end;
 
@@ -2824,21 +2845,17 @@ begin
   inherited;
   FFont:= TFont.Create;
   FFont.OnChange:= OnFontChange;
-  FSubscribers:= TList<TControl>.Create;
 
   FFontGeneratorClass:= GetFontGeneratorClass;
 end;
 
 destructor TCGFontGenerator.Destroy;
-var c: TControl;
 begin
-  while FSubscribers.Count > 0 do begin
-    c:= FSubscribers[0];
-    TCGControl(c).Perform(CM_FONTGENERATORDESTROY, 0, 0);
-  end;
-  FSubscribers.Free;
+  ClearSubscribers;
+
   FFont.Free;
   FFontGenerator.Free;
+
   inherited;
 end;
 
@@ -2887,8 +2904,8 @@ end;
 
 procedure TCGFontGenerator.NeedRefresh(Sender: TObject);
 begin
-  if FScene <> nil then begin
-    FScene.Invalidate;
+  if Scene <> nil then begin
+    Scene.Invalidate;
     ProcessFontUpdate(False);
   end;
 end;
@@ -2899,13 +2916,8 @@ begin
 end;
 
 procedure TCGFontGenerator.ProcessFontUpdate(AFontChanged: Boolean);
-var i: Integer;
-    c: TControl;
 begin
-  for i := 0 to FSubscribers.Count - 1 do begin
-    c:= FSubscribers[i];
-    TCGControl(c).Perform(CM_FONTGENERATORCHANGED, WPARAM(AFontChanged), 0);
-  end;
+  NotifySubscribers(CM_FONTGENERATORCHANGED, WPARAM(AFontChanged), NativeInt(Self));
 end;
 
 procedure TCGFontGenerator.SetCharSet(const Value: string);
@@ -2932,34 +2944,6 @@ procedure TCGFontGenerator.SetGeneric2DObjectClass(
   const Value: TGeneric2DObjectClass);
 begin
   FGeneric2DObjectClass := Value;
-end;
-
-procedure TCGFontGenerator.SubscribeOnChange(AScene: TCGScene);
-begin
-  if not FSubscribers.Contains(AScene) then
-    FSubscribers.Add(AScene);
-end;
-
-procedure TCGFontGenerator.UnSubscribeOnChange(AScene: TCGScene);
-var i: Integer;
-begin
-  i:= FSubscribers.IndexOf(AScene);
-  if i >= 0 then
-    FSubscribers.Delete(i);
-end;
-
-procedure TCGFontGenerator.SubscribeOnChange(AControl: TCGControl);
-begin
-  if not FSubscribers.Contains(AControl) then
-    FSubscribers.Add(AControl);
-end;
-
-procedure TCGFontGenerator.UnSubscribeOnChange(AControl: TCGControl);
-var i: Integer;
-begin
-  i:= FSubscribers.IndexOf(AControl);
-  if i >= 0 then
-    FSubscribers.Delete(i);
 end;
 
 { TCGImage }
@@ -3497,6 +3481,20 @@ end;
 
 { TSceneComponent }
 
+procedure TSceneComponent.ClearSubscribers;
+var c: TControl;
+    i: Integer;
+begin
+  i:= FSubscribers.Count - 1;
+  while (FSubscribers.Count > 0) and (i >= 0) do begin
+    c:= FSubscribers[i];
+    c.Perform(CM_COMPONENTDESTROYING, NativeInt(Self), 0);
+    Dec(i);
+  end;
+
+  FSubscribers.Clear;
+end;
+
 procedure TSceneComponent.ContextEvent(AContext: TCGContextBase;
   IsInitialization: Boolean);
 begin
@@ -3507,7 +3505,7 @@ constructor TSceneComponent.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
-  FSubscribers:= TList<TNotifyEvent>.Create;
+  FSubscribers:= TList<TControl>.Create;
 
   if AOwner is TWinControl then
     FindScene(TWinControl(AOwner));
@@ -3534,12 +3532,14 @@ begin
   end;
 end;
 
-procedure TSceneComponent.NotifySubscribers;
-var
-  i: Integer;
+procedure TSceneComponent.NotifySubscribers(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM);
+var i: Integer;
+    c: TControl;
 begin
-  for i := 0 to FSubscribers.Count - 1 do
-    FSubscribers[i](Self);
+  for i := FSubscribers.Count - 1 downto 0 do begin
+    c:= FSubscribers[i];
+    c.Perform(Msg, WParam, LParam);
+  end;
 end;
 
 procedure TSceneComponent.SetScene(const Value: TCGScene);
@@ -3556,15 +3556,15 @@ begin
   end;
 end;
 
-procedure TSceneComponent.Subscribe(Event: TNotifyEvent);
+procedure TSceneComponent.Subscribe(AControl: TControl);
 begin
-  if FSubscribers.IndexOf(Event) = -1 then
-    FSubscribers.Add(Event);
+  if FSubscribers.IndexOf(AControl) = -1 then
+    FSubscribers.Add(AControl);
 end;
 
-procedure TSceneComponent.Unsubscribe(Event: TNotifyEvent);
+procedure TSceneComponent.Unsubscribe(AControl: TControl);
 begin
-  FSubscribers.Remove(Event);
+  FSubscribers.Remove(AControl);
 end;
 
 { TCGScrollBarTemplate }
@@ -3923,18 +3923,21 @@ begin
   end;
 end;
 
+procedure TCGBorderTemplate.NotifySubscribers;
+begin
+  inherited NotifySubscribers(CM_BORDERCHANGED, WPARAM(Self), 0);
+end;
+
 procedure TCGBorderTemplate.SetBorderSize(const Value: Integer);
 var old: Integer;
-  i: Integer;
 begin
   if FBorderSize <> Value then begin
     old:= FBorderSize;
     FBorderSize:= Value;
     Scene.Perform(CM_BORDERSIZECHANGED, WPARAM(Self), LPARAM(old));
-    if csDesigning in ComponentState then begin
-      for i := 0 to FSubscribers.Count - 1 do
-        TControl(TMethod(FSubscribers[i]).Data).Perform(CM_BORDERSIZECHANGED, WPARAM(Self), LPARAM(old));
-    end;
+    if csDesigning in ComponentState then
+      inherited NotifySubscribers(CM_BORDERSIZECHANGED, WPARAM(Self), LPARAM(old));
+    NotifySubscribers;
   end;
 end;
 

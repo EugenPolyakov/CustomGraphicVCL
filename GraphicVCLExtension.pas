@@ -12,8 +12,8 @@ type
     FParentFont: Boolean;
     procedure CMParentFontChanged(var Message: TCMParentFontChanged); message CM_PARENTFONTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
-    procedure CMFontGeneratorChanged(var Message: TMessage); message CM_FONTGENERATORCHANGED;
-    procedure CMFontGeneratorDestroy(var Message: TMessage); message CM_FONTGENERATORDESTROY;
+    procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
+    procedure CMComponentDestroying(var Message: TCMComponentDestoyng); message CM_COMPONENTDESTROYING;
     procedure SetFontGenerator(const Value: TCGFontGenerator);
     procedure SetParentFont(const Value: Boolean);
   protected
@@ -90,19 +90,21 @@ begin
   Invalidate;
 end;
 
-procedure TControlWithFont.CMFontGeneratorChanged(var Message: TMessage);
+procedure TControlWithFont.CMComponentDestroying(var Message: TCMComponentDestoyng);
+begin
+  inherited;
+
+  if Font = Message.ComponentObject then
+    Font:= nil;
+end;
+
+procedure TControlWithFont.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   if (csDesigning in ComponentState) and (Font <> nil) then
     THackControl(Self).Font:= Font.Font;
   if (Parent <> nil) and (FFontGenerator <> TCGWinControl(Parent).Font) then
     ParentFont:= False;
   Invalidate;
-end;
-
-procedure TControlWithFont.CMFontGeneratorDestroy(var Message: TMessage);
-begin
-  inherited;
-  Font:= nil;
 end;
 
 procedure TControlWithFont.CMParentFontChanged(
@@ -152,11 +154,11 @@ procedure TControlWithFont.SetFontGenerator(const Value: TCGFontGenerator);
 begin
   if FFontGenerator <> Value then begin
     if FFontGenerator <> nil then
-      FFontGenerator.UnSubscribeOnChange(Self);
+      FFontGenerator.UnSubscribe(Self);
 
     FFontGenerator:= Value;
     if FFontGenerator <> nil then
-      FFontGenerator.SubscribeOnChange(Self);
+      FFontGenerator.Subscribe(Self);
 
     Perform(CM_FONTGENERATORCHANGED, 0, 0);
   end;
