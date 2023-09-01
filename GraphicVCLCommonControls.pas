@@ -459,6 +459,7 @@ type
     function GetScrollRect: TRect; override;
     procedure PrepareRows;
     function GetLine(X, Y: Integer): Integer;
+    function GetColumn(X, Y: Integer): Integer;
     function GetHeaderCell(X, Y: Integer): Integer;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
     procedure DesignPaint; override;
@@ -1757,6 +1758,20 @@ begin
   Result:= '';
 end;
 
+function TCGStringGrid.GetColumn(X, Y: Integer): Integer;
+var i, w: Integer;
+begin
+  if (Y <= Height) and (Y >= 0) then begin
+    w:= -FScrollBars.Horizontal.ScrollOffset;
+    for I := 0 to ColCount - 1 do begin
+      if (X >= w) and (X < w + FColWidths[i]) then
+        Exit(I);
+      Inc(w, FColWidths[i]);
+    end;
+  end;
+  Result:= -1;
+end;
+
 function TCGStringGrid.GetColWidths(Index: Integer): Integer;
 begin
   if (Index < 0) or (Index >= Length(FColWidths)) then
@@ -1766,17 +1781,11 @@ begin
 end;
 
 function TCGStringGrid.GetHeaderCell(X, Y: Integer): Integer;
-var i, w: Integer;
 begin
-  if Y < FHeaderHeight then begin
-    w:= -FScrollBars.Horizontal.ScrollOffset;
-    for I := 0 to ColCount - 1 do begin
-      if (X >= w) and (X < w + FColWidths[i]) then
-        Exit(I);
-      Inc(w, FColWidths[i]);
-    end;
-  end;
-  Result:= -1;
+  if (Y < FHeaderHeight) and (Y >= 0) then
+    Result:= GetColumn(X, Y)
+  else
+    Result:= -1;
 end;
 
 function TCGStringGrid.GetHeaderTitle(Index: Integer): string;
@@ -1846,7 +1855,7 @@ begin
     if old <> FActiveLine then
       Invalidate;
     if (FActiveLine >= 0) and Assigned(FOnCellClick) then
-      FOnCellClick(Self, Button, 0, FActiveLine);
+      FOnCellClick(Self, Button, GetColumn(X, Y), FActiveLine);
   end;
 end;
 
