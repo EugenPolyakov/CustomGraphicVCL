@@ -1428,7 +1428,7 @@ begin
   Result:= AMessage;
   case AMessage of
     WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN: begin
-      if (AMessage <> FLastMouseClickMessage) or (AControl <> FLastMouseControl) then begin
+      if (AControl <> FLastMouseControl) or (AMessage <> FLastMouseClickMessage - 1) then begin
         FLastMouseClickMessage:= AMessage;
         FLastMouseControl:= AControl;
         FLastMouseTime:= GetTickCount;
@@ -1439,7 +1439,14 @@ begin
         FLastMouseClickMessage:= AMessage;
         FLastMouseControl:= AControl;
         FLastMouseTime:= GetTickCount;
-      end
+      end;
+    end;
+    WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP: begin
+      if (AControl <> FLastMouseControl) or (AMessage <> FLastMouseClickMessage + 1) then begin
+        FLastMouseControl:= nil;
+      end else begin
+        Inc(FLastMouseClickMessage);
+      end;
     end;
   end;
 end;
