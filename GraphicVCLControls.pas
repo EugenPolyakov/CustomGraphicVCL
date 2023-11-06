@@ -320,6 +320,7 @@ type
     procedure WMSize(var Message: TWMSize); message WM_SIZE;
     procedure WMMove(var Message: TWMMove); message WM_MOVE;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
+    procedure WMWindowPosChanging(var Message: TWMWindowPosChanging); message WM_WINDOWPOSCHANGING;
 
     procedure WMCopy(var Message: TWMCopy); message WM_COPY;
     procedure WMClear(var Message: TWMClear); message WM_CLEAR;
@@ -855,6 +856,7 @@ type
     procedure PrivateSetBounds(ALeft, ATop, AWidth, AHeight: Integer);
     procedure PrivateUpdateAnchorRules;
     procedure ProcessWMWindowPosChanged(var Message: TWMWindowPosChanged);
+    function CheckNewSizeCustom(var NewWidth, NewHeight: Integer): Boolean;
   end;
 
   TSizeConstraintsHelper = class helper for TSizeConstraints
@@ -2710,6 +2712,44 @@ begin
   end;
 end;
 
+procedure TCGWinControl.WMWindowPosChanging(var Message: TWMWindowPosChanging);
+var
+  WindowPos: PWindowPos;
+  h, w: Integer;
+begin
+  if ComponentState * [csReading, csDestroying] = [] then
+  begin
+    WindowPos := Message.WindowPos;
+    with WindowPos^ do begin
+      h:= cy;
+      w:= cx;
+      if (flags and SWP_NOSIZE = 0) and not CheckNewSizeCustom(cx, cy) then
+        flags := flags or SWP_NOSIZE;
+      if Align = alNone then begin
+        if ((w <> cx) and (akRight in Anchors)) or ((h <> cy) and (akBottom in Anchors)) then
+          if flags and SWP_NOMOVE <> 0 then begin
+            x:= Left;
+            y:= Top;
+            flags:= flags and not SWP_NOMOVE;
+          end;
+        if (w <> cx) and (akRight in Anchors) then begin
+          if akLeft in Anchors then
+            x:= x + (w - cx) div 2
+          else
+            x:= x + (w - cx);
+        end;
+        if (h <> cy) and (akBottom in Anchors) then begin
+          if akTop in Anchors then
+            y:= y + (h - cy) div 2
+          else
+            y:= y + (h - cy);
+        end;
+      end;
+    end;
+  end;
+  inherited;
+end;
+
 procedure TCGWinControl.WndProc(var Message: TMessage);
 var
   Form: TCustomForm;
@@ -3413,6 +3453,11 @@ begin
 end;
 
 { TControlHelper }
+
+function TControlHelper.CheckNewSizeCustom(var NewWidth, NewHeight: Integer): Boolean;
+begin
+  Result:= Self.CheckNewSize(NewWidth, NewHeight);
+end;
 
 procedure TControlHelper.PrivateSetBounds(ALeft, ATop, AWidth,
   AHeight: Integer);
