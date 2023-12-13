@@ -1499,6 +1499,7 @@ procedure TCGScene.WMPaint(var Message: TWMPaint);
 var
   PS: TPaintStruct;
   clearColor: TColor4f;
+  R: TRect;
 begin
   if csDesigning in ComponentState then begin
     ControlState:= ControlState + [csCustomPaint];
@@ -1524,7 +1525,14 @@ begin
     if Assigned(FOnPaint) then
       FOnPaint(Self);
 
+    R:= GetClientRectWithOffset;
+    if FBackground.Value <> nil then begin
+      FBackground.InitializeContext;
+      FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
+    end;
     RenderChild(FContext);
+    if FBorder <> nil then
+      FBorder.DoRender(FContext, GetClientRectWithOffset);
 
     QueueFreeContext;
 
@@ -2408,7 +2416,6 @@ begin
     FBackground.InitializeContext;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
-  AdjustClientRect(R);
   RenderChild(Context);
   if FBorder <> nil then
     FBorder.DoRender(Context, GetClientRectWithOffset);
