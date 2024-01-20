@@ -47,21 +47,27 @@ type
     destructor Destroy; override;
   end;
 
-  TGeneric2DObject = class (TObject)
+  TObjectWithContext = class (TInterfacedObject)
   private
-    FRefCount, FContextCount: Integer;
+    FContextCount: Integer;
   protected
     procedure InnerInitContext; virtual; abstract;
     procedure InnerFreeContext(AContext: TCGContextBase); virtual; abstract;
   public
-    procedure DrawWithSize(const Pos: TPoint; const Size: TSize); virtual;
-    procedure DrawFigure(const Pos: TPoint; const APonts: array of TPoint); virtual; abstract;
     procedure Reference; inline;
     procedure Release; inline;
     procedure InitContext;
     procedure ActualizeContext; virtual; abstract;
     procedure FreeContext(AContext: TCGContextBase);
     procedure FreeContextAndRelease(AContext: TCGContextBase);
+  end;
+
+  TGeneric2DObject = class (TObjectWithContext)
+  private
+  protected
+  public
+    procedure DrawWithSize(const Pos: TPoint; const Size: TSize); virtual;
+    procedure DrawFigure(const Pos: TPoint; const APonts: array of TPoint); virtual; abstract;
   end;
 
   TSized2DObject = class (TGeneric2DObject)
@@ -386,38 +392,6 @@ begin
   DrawFigure(Pos, [TPoint.Create(0, 0), TPoint.Create(0, Size.cy), TPoint.Create(Size.cx, 0), TPoint(Size)]);
 end;
 
-procedure TGeneric2DObject.FreeContext(AContext: TCGContextBase);
-begin
-  Dec(FContextCount);
-  if FContextCount = 0 then
-    InnerFreeContext(AContext);
-end;
-
-procedure TGeneric2DObject.FreeContextAndRelease(AContext: TCGContextBase);
-begin
-  FreeContext(AContext);
-  Release;
-end;
-
-procedure TGeneric2DObject.InitContext;
-begin
-  if FContextCount = 0 then
-    InnerInitContext;
-  Inc(FContextCount);
-end;
-
-procedure TGeneric2DObject.Reference;
-begin
-  AtomicIncrement(FRefCount);
-end;
-
-procedure TGeneric2DObject.Release;
-begin
-  AtomicDecrement(FRefCount);
-  if (FRefCount = 0) then
-    Destroy;
-end;
-
 { TSized2DObject }
 
 procedure TSized2DObject.Draw(X, Y: Integer);
@@ -483,6 +457,38 @@ end;
 function TScissorRect.GetRight: Integer;
 begin
   Result:= Left + Width;
+end;
+
+{ TObjectWithContext }
+
+procedure TObjectWithContext.FreeContext(AContext: TCGContextBase);
+begin
+  Dec(FContextCount);
+  if FContextCount = 0 then
+    InnerFreeContext(AContext);
+end;
+
+procedure TObjectWithContext.FreeContextAndRelease(AContext: TCGContextBase);
+begin
+  FreeContext(AContext);
+  Release;
+end;
+
+procedure TObjectWithContext.InitContext;
+begin
+  if FContextCount = 0 then
+    InnerInitContext;
+  Inc(FContextCount);
+end;
+
+procedure TObjectWithContext.Reference;
+begin
+  _AddRef;
+end;
+
+procedure TObjectWithContext.Release;
+begin
+  _Release;
 end;
 
 end.

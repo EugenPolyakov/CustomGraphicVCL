@@ -30,12 +30,11 @@ package VCLCustomGraphic;
 
 requires
   rtl,
-  vcl,
-  designide;
+  vcl {$IFNDEF CPUX64}, designide{$ENDIF};
 
 contains
   GraphicVCLBase in 'GraphicVCLBase.pas',
-  GraphicToolsAPI in 'GraphicToolsAPI.pas',
+  {$IFNDEF CPUX64}GraphicToolsAPI in 'GraphicToolsAPI.pas', {$ENDIF}
   GraphicVCLControls in 'GraphicVCLControls.pas',
   GraphicVCLCommonControls in 'GraphicVCLCommonControls.pas',
   GraphicVCLExtension in 'GraphicVCLExtension.pas';
