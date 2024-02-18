@@ -68,7 +68,7 @@ type
     FHoverDisabledPicture: TContextController<TCGBilboard>;
     FState: TButtonState;
     FLastPicture: PBilboardContext;
-    FOnNewPictureRender: TBilboardNotify;
+    FOnRenderingNewPicture: TBilboardNotify;
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -115,7 +115,7 @@ type
     property OnMouseLeave;
     property OnMouseMove;
     property OnMouseUp;
-    property OnNewPictureRender: TBilboardNotify read FOnNewPictureRender write FOnNewPictureRender;
+    property OnRenderingNewPicture: TBilboardNotify read FOnRenderingNewPicture write FOnRenderingNewPicture;
   end;
 
   TCGEdit = class (TControlWithInput)
@@ -2818,8 +2818,8 @@ begin
     p.InitializeContext;
     if FLastPicture <> p then begin
       FLastPicture:= p;
-      if Assigned(OnNewPictureRender) then
-        OnNewPictureRender(p.Value);
+      if Assigned(OnRenderingNewPicture) then
+        OnRenderingNewPicture(p.Value);
     end;
     t.Create(0, 0, p.Value.Width, p.Value.Height);
     p.Value.DrawBilboard(R, t);

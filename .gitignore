@@ -3,3 +3,4 @@ __history/
 *.identcache
 *.dcu
 *.exe
+VCLCustomGraphic.res
