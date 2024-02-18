@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<nodeSet version="1.0">
+  <view uin="8yherfw84he_v">
+    <property name="$defaultDiagram" value="true" />
+    <property name="$metaclass" value="Package Diagram" />
+    <property name="$name" value="default" />
+    <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.@unitclass">
+      <property name="$shortcutReference" value="true" />
+    </reference>
+    <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="10,10,345,357" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.FButtonHoverUp" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.FButtonWidth" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.FButtonDown" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.FButtonHoverDown" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.FButtonUp" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.SetButtonDown(GraphicVCLBase.TGeneric2DObject)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.SetButtonHoverDown(GraphicVCLBase.TGeneric2DObject)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.SetButtonHoverUp(GraphicVCLBase.TGeneric2DObject)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.SetButtonUp(GraphicVCLBase.TGeneric2DObject)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.SetButtonWidth(System.Integer)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.ContextEvent(GraphicVCLBase.TCGContextBase,System.Boolean)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.DoRender(GraphicVCLBase.TCGContextBase,System.Types.TRect,System.Boolean,System.Boolean)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.Destroy()" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.ButtonHoverUp" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.ButtonUp" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.ButtonHoverDown" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.ButtonDown" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate.ButtonWidth" />
+    </reference>
+    <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="374,1,185,313" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.FOnKeyDown" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.FOnKeyPress" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.FOnKeyUp" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.CMVisibleChanged(ref@Winapi.Messages.TMessage)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.CMEnabledChanged(ref@Winapi.Messages.TMessage)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.CMParentStateChanged(ref@Winapi.Messages.TMessage)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.MouseDown(System.UITypes.TMouseButton,TShiftState,System.Integer,System.Integer)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.KeyDown(ref@System.Word,TShiftState)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.KeyUp(ref@System.Word,TShiftState)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.KeyPress(ref@System.Char)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.CanFocus()" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.IsFocused()" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.SetFocus()" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.OnKeyDown" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.OnKeyPress" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput.OnKeyUp" />
+      <reference referencedUin="delphi:l_gnt:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput:GraphicVCLExtension.TControlWithFont">
+        <property name="sourceAnchor" value="472,314" />
+        <property name="targetAnchor" value="472,333" />
+        <property name="bendpoints" value="" />
+      </reference>
+    </reference>
+    <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="374,333,210,327" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.FFontGenerator" />
+      <reference referencedUin="delphi:e_field:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.FParentFont" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.CMParentFontChanged(ref@Vcl.Controls.TCMParentFontChanged)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.CMColorChanged(ref@Winapi.Messages.TMessage)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.CMFontGeneratorChanged(ref@GraphicVCLControls.TCMFontGeneratorChanged)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.CMComponentDestroying(ref@GraphicVCLControls.TCMComponentDestoyng)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.SetFontGenerator(GraphicVCLControls.TCGFontGenerator)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.SetParentFont(System.Boolean)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.IsFontStored()" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.FreeText(ref@GraphicVCLControls.TTextObjectBase)" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.DesignPaint()" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.Destroy()" />
+      <reference referencedUin="delphi:e_method:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.Create(System.Classes.TComponent)" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.Font" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.ParentFont" />
+      <reference referencedUin="delphi:e_property:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont.Color" />
+    </reference>
+  </view>
+</nodeSet>

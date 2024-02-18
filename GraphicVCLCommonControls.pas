@@ -53,7 +53,12 @@ type
     property OnMouseLeave;
   end;
 
+  TBilboardNotify = procedure (ABilboard: TCGBilboard) of object;
+
   TCGButton = class (TControlWithFont)
+  private type
+    TBilboardContext = TContextController<TCGBilboard>;
+    PBilboardContext = ^TBilboardContext;
   private
     FText: TTextObjectBase;
     FHoverPicture: TContextController<TCGBilboard>;
@@ -62,6 +67,8 @@ type
     FDisabledPicture: TContextController<TCGBilboard>;
     FHoverDisabledPicture: TContextController<TCGBilboard>;
     FState: TButtonState;
+    FLastPicture: PBilboardContext;
+    FOnNewPictureRender: TBilboardNotify;
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -108,6 +115,7 @@ type
     property OnMouseLeave;
     property OnMouseMove;
     property OnMouseUp;
+    property OnNewPictureRender: TBilboardNotify read FOnNewPictureRender write FOnNewPictureRender;
   end;
 
   TCGEdit = class (TControlWithInput)
@@ -2779,7 +2787,7 @@ end;
 
 procedure TCGButton.DoRender(Context: TCGContextBase; R: TRect);
 var t: TRect;
-    p: ^TContextController<TCGBilboard>;
+    p: PBilboardContext;
 begin
   p:= nil;
   case FState of
@@ -2808,6 +2816,11 @@ begin
 
   if (p <> nil) and (p.Value <> nil) then begin
     p.InitializeContext;
+    if FLastPicture <> p then begin
+      FLastPicture:= p;
+      if Assigned(OnNewPictureRender) then
+        OnNewPictureRender(p.Value);
+    end;
     t.Create(0, 0, p.Value.Width, p.Value.Height);
     p.Value.DrawBilboard(R, t);
   end;
@@ -2893,26 +2906,36 @@ end;
 procedure TCGButton.SetDefaultPicture(const Value: TCGBilboard);
 begin
   FDefaultPicture.UpdateValue(Value, Scene);
+  if (FLastPicture = @FDefaultPicture) and not FDefaultPicture.Initialised then
+    FLastPicture:= nil;
 end;
 
 procedure TCGButton.SetDisabledPicture(const Value: TCGBilboard);
 begin
   FDisabledPicture.UpdateValue(Value, Scene);
+  if (FLastPicture = @FDisabledPicture) and not FDisabledPicture.Initialised then
+    FLastPicture:= nil;
 end;
 
 procedure TCGButton.SetHoverDisabledPicture(const Value: TCGBilboard);
 begin
   FHoverDisabledPicture.UpdateValue(Value, Scene);
+  if (FLastPicture = @FHoverDisabledPicture) and not FHoverDisabledPicture.Initialised then
+    FLastPicture:= nil;
 end;
 
 procedure TCGButton.SetHoverPicture(const Value: TCGBilboard);
 begin
   FHoverPicture.UpdateValue(Value, Scene);
+  if (FLastPicture = @FHoverPicture) and not FHoverPicture.Initialised then
+    FLastPicture:= nil;
 end;
 
 procedure TCGButton.SetPressedPicture(const Value: TCGBilboard);
 begin
   FPressedPicture.UpdateValue(Value, Scene);
+  if (FLastPicture = @FPressedPicture) and not FPressedPicture.Initialised then
+    FLastPicture:= nil;
 end;
 
 procedure TCGButton.WMWindowPosChanged(var Message: TWMWindowPosChanged);

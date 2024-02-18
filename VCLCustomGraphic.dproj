@@ -129,6 +129,15 @@
         <DCCReference Include="GraphicVCLControls.pas"/>
         <DCCReference Include="GraphicVCLCommonControls.pas"/>
         <DCCReference Include="GraphicVCLExtension.pas"/>
+        <None Include="ModelSupport_VCLCustomGraphic\default.txaPackage"/>
+        <None Include="ModelSupport_VCLCustomGraphic\default.txvpck"/>
+        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLExtension\default.txvpck"/>
+        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLBase\default.txvpck"/>
+        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLControls\default.txvpck"/>
+        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLCommonControls\default.txvpck"/>
+        <None Include="ModelSupport_VCLCustomGraphic\GraphicToolsAPI\default.txvpck"/>
+        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLExtension\default.txaPackage"/>
+        <None Include="ModelSupport_VCLCustomGraphic\Class Diagram.txvcls"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -462,6 +471,7 @@
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>
             </Platforms>
+            <ModelSupport>True</ModelSupport>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>

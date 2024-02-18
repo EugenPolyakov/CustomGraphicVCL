@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<nodeSet version="1.0">
+  <view uin="6iry0kk6mptjzp3nj_v">
+    <property name="$defaultDiagram" value="true" />
+    <property name="$metaclass" value="Package Diagram" />
+    <property name="$name" value="default" />
+    <reference referencedUin="design:view:::8yherfw84he_v">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="10,10,177,181" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.@unitclass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.TUpDownTemplate" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithInput" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLExtension.TControlWithFont" />
+    </reference>
+    <reference referencedUin="design:view:::jlj2dxe9ihq_v">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="206,1,174,436" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGTexturedBilboard" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGFontGeneratorClass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TScissorRect" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGFontGeneratorBase" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TTextPosition" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGContextBase" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGBilboard" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGTextureLibrary" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TSimple2DText" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TObjectWithContext" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TColored2DObject" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGSolidBrush" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGContextBaseClass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TGeneric2DObjectClass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TGeneric2DObject" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TColor4f" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TSized2DObject" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.@unitclass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TTextData" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGTexturedBilboardClass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLBase.TCGSolidBrushClass" />
+    </reference>
+    <reference referencedUin="design:view:::fm0ssbyffom_v">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="17,210,180,620" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TMouseControlState" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TContextController&lt;1&gt;" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TScrollBarElement" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TFreeContextEvent" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TTextObjectBase" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TOnScrollOffsetChanged" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TSceneComponent" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGScrollBarTemplate" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.@unitclass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGFrame" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TWinControlHelper" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGWinControl" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGImage" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TChangedFlag" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGScene" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.THVScrolls" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGPanel" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCustomContextEvent" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGControl" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TBorderSizeChanged" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGGroupBox" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TScrollBarStatus" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TScrollBarState" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGCustom" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TSizeConstraintsHelper" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGFontGenerator" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TChangedFlags" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCMComponentDestoyng" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGScrollBox" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCGBorderTemplate" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TControlHelper" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLControls.TCMFontGeneratorChanged" />
+    </reference>
+    <reference referencedUin="design:view:::0d08l7mgw1n_v">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="399,1,219,363" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCustomList" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGEdit" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.@unitclass" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGListBox" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGLabel" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGButton" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.THeaderClick" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TTextObjectWithObject" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCellClick" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGStringGrid" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TColoredLabel" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TGetDrawCellParameters" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGListBoxStrings" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TScrolledWithFont" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicVCLCommonControls.TCGSpinEdit" />
+    </reference>
+    <reference referencedUin="design:view:::7o6ujxm4mkn_v">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="418,383,149,134" />
+      <reference referencedUin="delphi:e_class:src:VCLCustomGraphic:GraphicToolsAPI.@unitclass" />
+    </reference>
+    <reference referencedUin="design:view:::0i48hsf1hjo_v">
+      <property name="$shortcutReference" value="true" />
+      <property name="bounds" value="418,536,99,42" />
+    </reference>
+  </view>
+</nodeSet>

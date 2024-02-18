@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<TgConfig Version="3" SubLevelDisabled="False">
+  <Option Name="namespaceFolder.GraphicVCLExtension" Type="System.String" Value="GraphicVCLExtension" Category="General" IsBrowsable="False" />
+  <Option Name="namespaceFolder.GraphicToolsAPI" Type="System.String" Value="GraphicToolsAPI" Category="General" IsBrowsable="False" />
+</TgConfig>
