@@ -4584,7 +4584,7 @@ begin
         Horizontal.Enabled:= ctrlWidth < RealWidth;
     end;
   end else
-    Horizontal.Enabled:= False;
+    Vertical.Enabled:= False;
 
   if Horizontal.Enabled then begin
     if Horizontal.ScrollOffset + ctrlWidth > RealWidth then
