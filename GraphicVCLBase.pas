@@ -43,6 +43,7 @@ type
     procedure DestroyContext; virtual; abstract;
     function IsContextCreated: Boolean; virtual; abstract;
     procedure PushScissor(const R: TScissorRect);
+    procedure PushNewScissor(const R: TScissorRect);
     procedure PopScissor;
     destructor Destroy; override;
   end;
@@ -275,6 +276,15 @@ begin
     DoScissorActive(False);
 end;
 
+procedure TCGContextBase.PushNewScissor(const R: TScissorRect);
+begin
+  if FScissorList.Count = 0 then
+    DoScissorActive(True);
+
+  SetScissor(R);
+  FScissorList.Add(R);
+end;
+
 procedure TCGContextBase.PushScissor(const R: TScissorRect);
 var fixed, orig: TScissorRect;
 begin
@@ -286,14 +296,25 @@ begin
   end else begin
     orig:= FScissorList.Last;
     fixed:= R;
-    if fixed.Left < orig.Left then
+    if fixed.Left < orig.Left then begin
       fixed.Left:= orig.Left;
-    if R.Left + R.Width > orig.Left + orig.Width then
-      fixed.Width:= orig.Left + orig.Width - fixed.Left;
-    if fixed.Bottom < orig.Bottom then
+      if R.Left + R.Width > orig.Left + orig.Width then
+        fixed.Width:= orig.Left
+      else
+        fixed.Width:= R.Width - (orig.Left - R.Left);
+    end else
+      if R.Left + R.Width > orig.Left + orig.Width then
+        fixed.Width:= orig.Left + orig.Width - fixed.Left;
+
+    if fixed.Bottom < orig.Bottom then begin
       fixed.Bottom:= orig.Bottom;
-    if R.Bottom + R.Height > orig.Bottom + orig.Height then
-      fixed.Height:= orig.Bottom + orig.Height - fixed.Bottom;
+      if R.Bottom + R.Height > orig.Bottom + orig.Height then
+        fixed.Height:= orig.Height
+      else
+        fixed.Height:= R.Height - (orig.Bottom - R.Bottom);
+    end else
+      if R.Bottom + R.Height > orig.Bottom + orig.Height then
+        fixed.Height:= orig.Bottom + orig.Height - fixed.Bottom;
 
     if fixed.Width < 0 then
       fixed.Width:= 0;
