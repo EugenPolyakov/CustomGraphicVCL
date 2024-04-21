@@ -607,6 +607,7 @@ type
     procedure CorrectMouseEvent(var Message: TWMMouse); override;
     procedure AlignControls(AControl: TControl; var Rect: TRect); override;
     procedure OnScroll(const Scroll: TScrollBarStatus);
+    procedure ReAlignScrollBars;
   public
     function GetClientOrigin: TPoint; override;
     function GetClientOffset: TPoint; override;
@@ -3721,7 +3722,7 @@ end;
 { TCGScrollBox }
 
 procedure TCGScrollBox.AlignControls(AControl: TControl; var Rect: TRect);
-var MaxWidth, MaxHeight, AlHeight, AlWidth: Integer;
+var AlHeight, AlWidth: Integer;
   i: Integer;
   R: TRect;
 begin
@@ -3741,25 +3742,7 @@ begin
 
   inherited AlignControls(AControl, R);
 
-  //AlHeight:= 0;
-  //AlWidth:= 0;
-  MaxWidth:= 0;
-  MaxHeight:= 0;
-  for i := 0 to ControlCount - 1 do with Controls[i] do
-    case Align of
-      //alTop, alBottom: Inc(AlHeight, Height);
-      //alLeft, alRight: Inc(AlWidth, Width);
-      alNone, alCustom: begin
-        if MaxWidth < Left + Width then
-          MaxWidth:= Left + Width;
-        if MaxHeight < Top + Height then
-          MaxHeight:= Top + Height;
-      end;
-    end;
-
-  R:= GetClientRect;
-  AdjustClientRect(R);
-  FScrollBars.ReAlign(R, MaxWidth, MaxHeight);
+  ReAlignScrollBars;
 end;
 
 procedure TCGScrollBox.CMRepeatTimer(var Message: TMessage);
@@ -3839,6 +3822,28 @@ begin
   msg.HitTest:= HTCLIENT;
   WindowProc(TMessage(msg));
   Invalidate;
+end;
+
+procedure TCGScrollBox.ReAlignScrollBars;
+var MaxWidth, MaxHeight: Integer;
+  i: Integer;
+  R: TRect;
+begin
+  MaxWidth:= 0;
+  MaxHeight:= 0;
+  for i := 0 to ControlCount - 1 do with Controls[i] do
+    case Align of
+      alNone, alCustom: begin
+        if MaxWidth < Left + Width then
+          MaxWidth:= Left + Width;
+        if MaxHeight < Top + Height then
+          MaxHeight:= Top + Height;
+      end;
+    end;
+
+  R:= GetClientRect;
+  AdjustClientRect(R);
+  FScrollBars.ReAlign(R, MaxWidth, MaxHeight);
 end;
 
 procedure TCGScrollBox.Render(Context: TCGContextBase);

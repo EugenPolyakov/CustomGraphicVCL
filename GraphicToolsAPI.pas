@@ -16,7 +16,7 @@ begin
   RegisterComponents('Custom Graphic Extensions', [TCGScene, TCGImage, TCGPanel,
       TCGButton, TCGLabel, TCGFontGenerator, TCGTextureLibrary, TCGCustom,
       TCGScrollBarTemplate, TCGScrollBox, TCGBorderTemplate, TCGEdit, TCGSpinEdit,
-      TUpDownTemplate, TColoredLabel, TCGStringGrid, TCGListBox]);
+      TUpDownTemplate, TColoredLabel, TCGStringGrid, TCGListBox, TCGStackPanel]);
   RegisterCustomModule(TCGFrame, TCustomModule);
 
   RegisterPropertyEditor(TypeInfo(TCGFontGenerator), nil, '', TComponentProperty);

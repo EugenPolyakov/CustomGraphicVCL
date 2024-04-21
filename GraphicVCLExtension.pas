@@ -78,6 +78,21 @@ type
     property OnKeyUp: TKeyEvent read FOnKeyUp write FOnKeyUp;
   end;
 
+  TCGStackPanel = class (TCGScrollBox)
+  private
+    FWrap: Boolean;
+    FUseVerticalOrientation: Boolean;
+    procedure SetWrap(const Value: Boolean);
+    procedure SetUseVerticalOrientation(const Value: Boolean);
+  protected
+    procedure AlignControls(AControl: TControl; var Rect: TRect); override;
+  public
+    constructor Create(AOwner: TComponent); override;
+  published
+    property Wrap: Boolean read FWrap write SetWrap default True;
+    property UseVerticalOrientation: Boolean read FUseVerticalOrientation write SetUseVerticalOrientation default False;
+  end;
+
 implementation
 
 type
@@ -327,6 +342,146 @@ procedure TControlWithInput.SetFocus;
 begin
   if CanFocus then
     Scene.KeyControl:= Self;
+end;
+
+{ TCGStackPanel }
+
+procedure TCGStackPanel.AlignControls(AControl: TControl; var Rect: TRect);
+var
+  AlignList: TList;
+
+  function DoAlign(var Rect: TRect; CheckScrollBar: Boolean): Boolean;
+  var
+    I, k: Integer;
+    Position: TPoint;
+    Size: TSize;
+    Control: TControl;
+    minSize: Integer;
+  begin
+    minSize:= 0;
+    Position:= Rect.TopLeft;
+    for I := 0 to AlignList.Count - 1 do begin
+      Control := TControl(AlignList[I]);
+      if (Control.Visible or (csDesigning in ComponentState)) then begin
+        // The area occupied by the control is affected by the Margins
+        Size.cx := Control.Margins.ControlWidth;
+        Size.cy := Control.Margins.ControlHeight;
+
+        if UseVerticalOrientation then begin
+          for k:= 0 to 1 do begin //2 iterations because only one wrap can be
+            if Wrap and (Position.Y + Size.cy > Rect.Bottom) then begin
+              Position.Y:= Rect.Top;
+              Inc(Position.X, minSize);
+              minSize:= 0;
+              Continue;
+            end;
+            Break;
+          end;
+
+          if CheckScrollBar and (Position.X + Size.cx > Rect.Right) then
+            Exit(True); //need realign with scrollbar
+
+          Control.Margins.SetControlBounds(Position.X, Position.Y, Size.cx, Size.cy);
+          Inc(Position.Y, Size.cy);
+          if minSize < Size.cx then
+            minSize:= Size.cx;
+        end else begin
+          for k:= 0 to 1 do begin //2 iterations because only one wrap can be
+            if Wrap and (Position.X + Size.cx > Rect.Right) then begin
+              Position.X:= Rect.Left;
+              Inc(Position.Y, minSize);
+              minSize:= 0;
+              Continue;
+            end;
+            Break;
+          end;
+
+          if CheckScrollBar and (Position.X + Size.cx > Rect.Right) then
+            Exit(True); //need realign with scrollbar
+
+          Control.Margins.SetControlBounds(Position.X, Position.Y, Size.cx, Size.cy);
+          Inc(Position.X, Size.cx);
+          if minSize < Size.cy then
+            minSize:= Size.cy;
+        end;
+      end;
+    end;
+    Result:= False;
+  end;
+var
+  I, J: Integer;
+  Control: TControl;
+  Bounds: TRect;
+  minSize: Integer;
+begin
+  AdjustClientRect(Rect);
+  minSize:= 0;
+  AlignList:= TList.Create;
+  try
+    if UseVerticalOrientation then begin
+      for I := 0 to ControlCount - 1 do begin
+        Control:= Controls[I];
+        if minSize < Control.Height then
+          minSize:= Control.Height;
+        J := 0;
+        while (J < AlignList.Count) and (Control.Top > TControl(AlignList[J]).Top) do
+          Inc(J);
+        AlignList.Insert(J, Control);
+      end;
+
+      if Rect.Height < minSize then
+        Rect.Height:= minSize;
+    end else begin
+      for I := 0 to ControlCount - 1 do begin
+        Control:= Controls[I];
+        if minSize < Control.Width then
+          minSize:= Control.Width;
+        J := 0;
+        while (J < AlignList.Count) and (Control.Left > TControl(AlignList[J]).Left) do
+          Inc(J);
+        AlignList.Insert(J, Control);
+      end;
+
+      if Rect.Width < minSize then
+        Rect.Width:= minSize;
+    end;
+
+    Bounds:= Rect;
+    if DoAlign(Bounds, Wrap and ((UseVerticalOrientation and (HorizontalScrollBar <> nil))
+        or (not UseVerticalOrientation and (VerticalScrollBar <> nil)))) then begin
+      Bounds:= Rect;
+      if UseVerticalOrientation then
+        Dec(Bounds.Bottom, HorizontalScrollBar.ButtonSize)
+      else
+        Dec(Bounds.Right, VerticalScrollBar.ButtonSize);
+      DoAlign(Bounds, False);
+    end;
+  finally
+    AlignList.Free;
+  end;
+
+  ControlsAligned;
+  if Showing then
+    AdjustSize;
+
+  ReAlignScrollBars;
+end;
+
+constructor TCGStackPanel.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+
+  FWrap:= True;
+end;
+
+procedure TCGStackPanel.SetUseVerticalOrientation(const Value: Boolean);
+begin
+  FUseVerticalOrientation := Value;
+end;
+
+procedure TCGStackPanel.SetWrap(const Value: Boolean);
+begin
+  FWrap := Value;
 end;
 
 end.

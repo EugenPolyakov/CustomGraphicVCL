@@ -1101,46 +1101,28 @@ end;
 
 procedure TCGEdit.WMCopy(var Message: TWMCopy);
 var s: string;
-    clip: TClipboard;
 begin
   s:= SelText;
   if s <> '' then begin
-    clip:= TClipboard.Create;
-    try
-      clip.AsText:= s;
-    finally
-      clip.Free;
-    end;
+    Clipboard.AsText:= s;
   end;
 end;
 
 procedure TCGEdit.WMCut(var Message: TWMCut);
 var s: string;
-    clip: TClipboard;
 begin
   s:= SelText;
   if s <> '' then begin
-    clip:= TClipboard.Create;
-    try
-      clip.AsText:= s;
-    finally
-      clip.Free;
-    end;
+    Clipboard.AsText:= s;
     SelText:= '';
   end;
 end;
 
 procedure TCGEdit.WMPaste(var Message: TWMPaste);
 var s: string;
-    clip: TClipboard;
 begin
-  clip:= TClipboard.Create;
-  try
-    s:= clip.AsText;
-    SelText:= s;
-  finally
-    clip.Free;
-  end;
+  s:= Clipboard.AsText;
+  SelText:= s;
 end;
 
 procedure TCGEdit.WMWindowPosChanged(var Message: TWMWindowPosChanged);
@@ -2446,18 +2428,11 @@ end;
 
 procedure TCGListBox.WMCopy(var Message: TWMCopy);
 var s: string;
-    clip: TClipboard;
 begin
   if ItemIndex <> -1 then begin
     s:= Items[ItemIndex];
-    if s <> '' then begin
-      clip:= TClipboard.Create;
-      try
-        clip.AsText:= s;
-      finally
-        clip.Free;
-      end;
-    end;
+    if s <> '' then
+      Clipboard.AsText:= s;
   end;
 end;
 
