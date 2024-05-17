@@ -3832,14 +3832,15 @@ begin
   MaxWidth:= 0;
   MaxHeight:= 0;
   for i := 0 to ControlCount - 1 do with Controls[i] do
-    case Align of
-      alNone, alCustom: begin
-        if MaxWidth < Left + Width then
-          MaxWidth:= Left + Width;
-        if MaxHeight < Top + Height then
-          MaxHeight:= Top + Height;
+    if Visible then
+      case Align of
+        alNone, alCustom: begin
+          if MaxWidth < Left + Width then
+            MaxWidth:= Left + Width;
+          if MaxHeight < Top + Height then
+            MaxHeight:= Top + Height;
+        end;
       end;
-    end;
 
   R:= GetClientRect;
   AdjustClientRect(R);
