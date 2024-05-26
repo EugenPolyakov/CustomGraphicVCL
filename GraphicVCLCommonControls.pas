@@ -13,19 +13,41 @@ type
     FAlignment: TAlignment;
     FWordWrap: Boolean;
     FText: TTextObjectBase;
+    FScrollBars: THVScrolls;
+    FScrollRealignCount: Integer;
+    FScrollRealignNeeded: Boolean;
+    FActualWidth: Integer;
+    FActualHeight: Integer;
+    procedure SetHorizontalScrollBar(const Value: TCGScrollBarTemplate);
+    procedure SetVerticalScrollBar(const Value: TCGScrollBarTemplate);
     procedure SetAlignment(const Value: TAlignment);
     procedure SetLayout(const Value: TTextLayout);
     procedure SetWordWrap(const Value: Boolean);
+    procedure SetActualHeight(const Value: Integer);
+    procedure SetActualWidth(const Value: Integer);
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
   protected
+    function GetScrollRect: TRect;
     procedure AdjustSize; override;
     function EnsureTextReady: Boolean;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
     procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat);
     procedure DesignPaint; override;
+    function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+      MousePos: TPoint): Boolean; override;
+    property ActualWidth: Integer read FActualWidth write SetActualWidth;
+    property ActualHeight: Integer read FActualHeight write SetActualHeight;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
+      X, Y: Integer); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState;
+      X, Y: Integer); override;
+    procedure BeginReAlignScrolls; inline;
+    procedure EndReAlignScrolls; inline;
+    procedure DoRealign;
   public
     procedure FreeContext(Context: TCGContextBase); override;
     destructor Destroy; override;
@@ -51,6 +73,8 @@ type
     property OnMouseUp;
     property OnMouseEnter;
     property OnMouseLeave;
+    property HorizontalScrollBar: TCGScrollBarTemplate read FScrollBars.Horizontal.Template write SetHorizontalScrollBar;
+    property VerticalScrollBar: TCGScrollBarTemplate read FScrollBars.Vertical.Template write SetVerticalScrollBar;
   end;
 
   TBilboardNotify = procedure (ABilboard: TCGBilboard) of object;
@@ -243,8 +267,8 @@ type
     FScrollBars: THVScrolls;
     property ScrollRealignNeeded: Boolean read FScrollRealignNeeded;
     function GetScrollRect: TRect; virtual;
-    procedure BeginReAlignScrolls;
-    procedure EndReAlignScrolls;
+    procedure BeginReAlignScrolls; inline;
+    procedure EndReAlignScrolls; inline;
     procedure DoRealign; virtual;
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
       MousePos: TPoint): Boolean; override;
@@ -532,35 +556,71 @@ type
 { TCGLabel }
 
 procedure TCGLabel.AdjustSize;
-var
-  DC: HDC;
-  X: Integer;
-  Rect: TRect;
-  f: TTextFormat;
-begin
-  if not (csLoading in ComponentState) and AutoSize then begin
-    Rect:= ClientRect;
+  procedure CalcTextInRect(var ARect: TRect);
+  var
+    DC: HDC;
+    f: TTextFormat;
+  begin
+    if Border <> nil then
+      ARect.Inflate(-Border.BorderSize, -Border.BorderSize);
     if (csDesigning in ComponentState) then begin
       DC := GetDC(0);
       try
         Canvas.Handle := DC;
-        DesignCalcRect(Rect, f);
-        Inc(Rect.Bottom);
-        Inc(Rect.Right);
+        DesignCalcRect(ARect, f);
+        Inc(ARect.Bottom);
+        Inc(ARect.Right);
         Canvas.Handle := 0;
       finally
         ReleaseDC(0, DC);
       end;
-    end else if FText <> nil then
-      Rect.BottomRight:= FText.CalculateSize;
-
-    if WordWrap and (Rect.Right < Width) then
-      Rect.Right:= Width;
-    X := Left;
-    if Alignment = taRightJustify then
-      Inc(X, Width - Rect.Right);
-    SetBounds(X, Top, Rect.Right, Rect.Bottom);
+    end else if FText <> nil then begin
+      FText.MaxWidth:= ARect.Width;
+      ARect.BottomRight:= FText.CalculateSize.Add(ARect.TopLeft);
+    end;
   end;
+var
+  X: Integer;
+  Rect: TRect;
+begin
+  if not (csLoading in ComponentState) then begin
+    Rect:= ClientRect;
+    if FText <> nil then
+      FText.MaxWidth:= Rect.Width;
+    CalcTextInRect(Rect);
+    if AutoSize then begin
+
+      if WordWrap and (Rect.Right < Width) then
+        Rect.Right:= Width;
+      X := Left;
+      if Alignment = taRightJustify then
+        Inc(X, Width - Rect.Right);
+      SetBounds(X, Top, Rect.Right, Rect.Bottom);
+    end else begin
+      BeginReAlignScrolls;
+      try
+        ActualWidth:= Rect.Width;
+        ActualHeight:= Rect.Height;
+        if WordWrap and (FScrollBars.Vertical.Template <> nil) and
+            (ActualWidth > Width - FScrollBars.Vertical.Template.ButtonSize) then begin
+          Rect:= ClientRect;
+          Rect.Width:= Rect.Width - FScrollBars.Vertical.Template.ButtonSize;
+          if FText <> nil then
+            FText.MaxWidth:= Rect.Width;
+          CalcTextInRect(Rect);
+          ActualWidth:= Rect.Width;
+          ActualHeight:= Rect.Height;
+        end;
+      finally
+        EndReAlignScrolls;
+      end;
+    end;
+  end;
+end;
+
+procedure TCGLabel.BeginReAlignScrolls;
+begin
+  Inc(FScrollRealignCount);
 end;
 
 procedure TCGLabel.CMColorChanged(var Message: TMessage);
@@ -600,6 +660,7 @@ begin
   inherited;
   ControlStyle:= ControlStyle + [csSetCaption];
   AutoSize:= True;
+  FScrollBars.Vertical.IsVertical:= True;
 end;
 
 procedure TCGLabel.DesignCalcRect(var R: TRect; var Flags: TTextFormat);
@@ -650,20 +711,57 @@ begin
   inherited;
 end;
 
+function TCGLabel.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean;
+begin
+  Result:= inherited DoMouseWheel(Shift, WheelDelta, MousePos);
+  if not Result then begin
+    Result:= True;
+    FScrollBars.DoVericalOffset(WheelDelta);
+  end;
+end;
+
+procedure TCGLabel.DoRealign;
+begin
+  FScrollBars.ReAlign(GetScrollRect, FActualWidth, FActualHeight);
+  FScrollRealignNeeded:= False;
+end;
+
 procedure TCGLabel.DoRender(Context: TCGContextBase; R: TRect);
 var p: TPoint;
+    b: TScissorRect;
 begin
   if (FText <> nil) and FText.IsInvalid then begin
     FText.FreeContext(Context);
     FreeAndNil(FText);
   end;
-  EnsureTextReady;
-  FText.InitContext;
-  FText.Render(R.Left, R.Top);
+
+  FScrollBars.DoRender(Context, R.Left, R.Top);
+  FScrollBars.AdjustClientRect(R);
+
+  b.Create(R, Scene.Height - R.Bottom);
+  Context.PushScissor(b);
+  try
+    Dec(R.Left, FScrollBars.Horizontal.ScrollOffset);
+    Dec(R.Top, FScrollBars.Vertical.ScrollOffset);
+    EnsureTextReady;
+    FText.InitContext;
+    FText.Render(R.Left, R.Top);
+  finally
+    Context.PopScissor;
+  end;
+
   if AutoSize then begin
     p:= FText.CalculateSize;
     if (R.Height <> p.Y) or (not WordWrap and (R.Width <> p.X)) then
       AdjustSize;
+  end;
+end;
+
+procedure TCGLabel.EndReAlignScrolls;
+begin
+  Dec(FScrollRealignCount);
+  if (FScrollRealignCount = 0) and FScrollRealignNeeded then begin
+    DoRealign;
   end;
 end;
 
@@ -689,6 +787,51 @@ begin
     FText.FreeContext(Context);
 end;
 
+function TCGLabel.GetScrollRect: TRect;
+begin
+  Result:= ClientRect;
+  if Border <> nil then
+    Result.Inflate(-Border.BorderSize, -Border.BorderSize);
+end;
+
+procedure TCGLabel.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FScrollBars.MouseDown(Button, Shift, X, Y);
+  inherited;
+end;
+
+procedure TCGLabel.MouseMove(Shift: TShiftState; X, Y: Integer);
+begin
+  FScrollBars.MouseMove(Shift, X, Y);
+  inherited;
+end;
+
+procedure TCGLabel.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FScrollBars.MouseUp(Button, Shift, X, Y);
+  inherited;
+end;
+
+procedure TCGLabel.SetActualHeight(const Value: Integer);
+begin
+  if FActualHeight <> Value then begin
+    BeginReAlignScrolls;
+    FScrollRealignNeeded:= True;
+    FActualHeight := Value;
+    EndReAlignScrolls;
+  end;
+end;
+
+procedure TCGLabel.SetActualWidth(const Value: Integer);
+begin
+  if FActualWidth <> Value then begin
+    BeginReAlignScrolls;
+    FScrollRealignNeeded:= True;
+    FActualWidth := Value;
+    EndReAlignScrolls;
+  end;
+end;
+
 procedure TCGLabel.SetAlignment(const Value: TAlignment);
 begin
   FAlignment := Value;
@@ -697,12 +840,32 @@ begin
   Invalidate;
 end;
 
+procedure TCGLabel.SetHorizontalScrollBar(const Value: TCGScrollBarTemplate);
+begin
+  if FScrollBars.Horizontal.Template <> Value then begin
+    BeginReAlignScrolls;
+    FScrollRealignNeeded:= True;
+    FScrollBars.Horizontal.Template := Value;
+    EndReAlignScrolls;
+  end;
+end;
+
 procedure TCGLabel.SetLayout(const Value: TTextLayout);
 begin
   FLayout := Value;
   if FText <> nil then
     FText.Layout:= Value;
   Invalidate;
+end;
+
+procedure TCGLabel.SetVerticalScrollBar(const Value: TCGScrollBarTemplate);
+begin
+  if FScrollBars.Vertical.Template <> Value then begin
+    BeginReAlignScrolls;
+    FScrollRealignNeeded:= True;
+    FScrollBars.Vertical.Template := Value;
+    EndReAlignScrolls;
+  end;
 end;
 
 procedure TCGLabel.SetWordWrap(const Value: Boolean);
@@ -719,6 +882,13 @@ begin
   if FText <> nil then begin
     FText.MaxHeight:= Height;
     FText.MaxWidth:= Width;
+  end;
+  BeginReAlignScrolls;
+  try
+    FScrollRealignNeeded:= True;
+    AdjustSize;
+  finally
+    EndReAlignScrolls;
   end;
   Invalidate;
 end;
