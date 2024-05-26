@@ -448,6 +448,7 @@ type
     FKeyControl: TCGControl;
     FTimer: TTimer;
     FOnRepeatTimer: TNotifyEvent;
+    FIsContextInitialized: Boolean;
 
     FLastMouseClickMessage: DWORD;
     FLastMouseControl: TControl;
@@ -1224,6 +1225,8 @@ begin
 
   if Assigned(FOnCreateContext) then
     FOnCreateContext(Self);
+
+  FIsContextInitialized:= True;
 end;
 
 destructor TCGScene.Destroy;
@@ -1249,6 +1252,7 @@ end;
 procedure TCGScene.DoFreeContext;
 begin
   if not (csDesigning in ComponentState) then begin
+    FIsContextInitialized:= False;
     if Assigned(FContext) then begin
       FContext.Activate;
       try
@@ -1300,7 +1304,7 @@ end;
 
 function TCGScene.GetIsRenderingContextAvailable: Boolean;
 begin
-  Result:= (FContext <> nil) and FContext.IsContextCreated;
+  Result:= FIsContextInitialized and (FContext <> nil) and FContext.IsContextCreated;
 end;
 
 function TCGScene.GetRepeatTimer: Cardinal;
@@ -2954,7 +2958,12 @@ end;
 
 function TCGFontGenerator.GetSizes(const AInfo: TTextData; var ASize: TPoint): Boolean;
 begin
-  Result:= GetFontGenerator.GetSizes(AInfo, ASize);
+  if Scene.IsRenderingContextAvailable then
+    Result:= GetFontGenerator.GetSizes(AInfo, ASize)
+  else begin
+    ASize.Create(0, 0);
+    Result:= False;
+  end;
 end;
 
 procedure TCGFontGenerator.NeedRefresh(Sender: TObject);
