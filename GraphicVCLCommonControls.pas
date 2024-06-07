@@ -29,6 +29,8 @@ type
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
+    procedure SetVerticalOffset(const Value: Integer);
+    procedure SetHorizontalOffset(const Value: Integer);
   protected
     function GetScrollRect: TRect;
     procedure AdjustSize; override;
@@ -52,6 +54,8 @@ type
     procedure FreeContext(Context: TCGContextBase); override;
     destructor Destroy; override;
     constructor Create(AOwner: TComponent); override;
+    property VerticalOffset: Integer read FScrollBars.Vertical.ScrollOffset write SetVerticalOffset;
+    property HorizontalOffset: Integer read FScrollBars.Horizontal.ScrollOffset write SetHorizontalOffset;
   published
     property Align;
     property Alignment: TAlignment read FAlignment write SetAlignment default taLeftJustify;
@@ -651,6 +655,10 @@ procedure TCGLabel.CMTextChanged(var Message: TMessage);
 begin
   if EnsureTextReady then
     FText.Text:= Caption;
+
+  FScrollBars.Vertical.ScrollOffset:= 0;
+  FScrollBars.Horizontal.ScrollOffset:= 0;
+
   AdjustSize;
   Invalidate;
 end;
@@ -840,6 +848,12 @@ begin
   Invalidate;
 end;
 
+procedure TCGLabel.SetHorizontalOffset(const Value: Integer);
+begin
+  FScrollBars.DoHorizontalOffset(FScrollBars.Horizontal.ScrollOffset - Value);
+  Invalidate;
+end;
+
 procedure TCGLabel.SetHorizontalScrollBar(const Value: TCGScrollBarTemplate);
 begin
   if FScrollBars.Horizontal.Template <> Value then begin
@@ -855,6 +869,12 @@ begin
   FLayout := Value;
   if FText <> nil then
     FText.Layout:= Value;
+  Invalidate;
+end;
+
+procedure TCGLabel.SetVerticalOffset(const Value: Integer);
+begin
+  FScrollBars.DoVericalOffset(FScrollBars.Vertical.ScrollOffset - Value);
   Invalidate;
 end;
 
