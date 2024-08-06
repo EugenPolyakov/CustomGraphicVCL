@@ -36,7 +36,6 @@ type
     procedure AdjustSize; override;
     function EnsureTextReady: Boolean;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
-    procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat);
     procedure DesignPaint; override;
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
       MousePos: TPoint): Boolean; override;
@@ -115,7 +114,6 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
-    procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat);
     procedure DesignPaint; override;
   public
     procedure FreeContext(Context: TCGContextBase); override;
@@ -402,8 +400,6 @@ type
   protected
     procedure OnScroll(const Scroll: TScrollBarStatus); override;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
-    //procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat);
-    //procedure DesignPaint; override;
   public
     procedure Add(const AText: string; AColor: TColor);
   published
@@ -565,20 +561,20 @@ procedure TCGLabel.AdjustSize;
     DC: HDC;
     f: TTextFormat;
   begin
-    if Border <> nil then
-      ARect.Inflate(-Border.BorderSize, -Border.BorderSize);
     if (csDesigning in ComponentState) then begin
       DC := GetDC(0);
       try
         Canvas.Handle := DC;
-        DesignCalcRect(ARect, f);
+        DesignCalcRect(ARect, f, Alignment, WordWrap);
         Inc(ARect.Bottom);
         Inc(ARect.Right);
         Canvas.Handle := 0;
       finally
         ReleaseDC(0, DC);
       end;
+      ARect.Offset(Padding.Left, Padding.Top);
     end else if FText <> nil then begin
+      AdjustClientRect(ARect);
       FText.MaxWidth:= ARect.Width;
       ARect.BottomRight:= FText.CalculateSize.Add(ARect.TopLeft);
     end;
@@ -671,42 +667,25 @@ begin
   FScrollBars.Vertical.IsVertical:= True;
 end;
 
-procedure TCGLabel.DesignCalcRect(var R: TRect; var Flags: TTextFormat);
-var s: string;
-begin
-  s:= Caption;
-  R:= ClientRect;
-  Canvas.Font:= THackControl(Self).Font;
-  Flags:= [tfCalcRect];
-  if WordWrap then
-    Include(Flags, tfWordBreak);
-  case Alignment of
-    taLeftJustify: Include(Flags, tfLeft);
-    taRightJustify: Include(Flags, tfRight);
-    taCenter: Include(Flags, tfCenter);
-  end;
-  Canvas.TextRect(r, s, Flags);
-  Exclude(Flags, tfCalcRect);
-end;
-
 procedure TCGLabel.DesignPaint;
 var s: string;
     r: TRect;
     f: TTextFormat;
 begin
-  inherited;
+  inherited DesignPaint;
+
   s:= Caption;
-  DesignCalcRect(r, f);
+  DesignCalcRect(r, f, Alignment, WordWrap);
 
   case Layout of
-    tlTop: ;
-    tlCenter: r.Offset(0, (Height - r.Bottom) div 2);
-    tlBottom: r.Offset(0, Height - r.Bottom);
+    tlTop: r.Offset(0, Padding.Top);
+    tlCenter: r.Offset(0, (Padding.ControlHeight - r.Bottom) div 2 + Padding.Top);
+    tlBottom: r.Offset(0, Padding.ControlHeight - r.Bottom + Padding.Top);
   end;
   case Alignment of
-    taLeftJustify: ;
-    taRightJustify: r.Offset(Width - r.Right, 0);
-    taCenter: r.Offset((Width - r.Right) div 2, 0);
+    taLeftJustify: r.Offset(Padding.Left, 0);
+    taRightJustify: r.Offset(Padding.ControlWidth - r.Right + Padding.Left, 0);
+    taCenter: r.Offset((Padding.ControlWidth - r.Right) div 2 + Padding.Left, 0);
   end;
 
   Canvas.Font.Color:= Color;
@@ -986,8 +965,7 @@ begin
 
   Canvas.Font:= THackControl(Self).Font;
   R:= ClientRect;
-  if Border <> nil then
-    R.Inflate(-Border.BorderSize, -Border.BorderSize);
+  AdjustClientRect(R);
   s:= Caption;
 
   Canvas.TextRect(r, s, [tfSingleLine, tfVerticalCenter]);
@@ -1362,8 +1340,7 @@ begin
   inherited DesignPaint;
   if UpDown <> nil then begin
     R:= ClientRect;
-    if Border <> nil then
-      R.Inflate(-Border.BorderSize, -Border.BorderSize);
+    AdjustClientRect(R);
     R.Left:= R.Right - UpDown.ButtonWidth;
 
     Canvas.Rectangle(r);
@@ -1690,7 +1667,7 @@ end;
 
 procedure TCGStringGrid.DesignPaint;
 begin
-  inherited;
+  inherited DesignPaint;
   with Canvas do begin
     MoveTo(0, HeaderHeight);
     LineTo(Width, HeaderHeight);
@@ -2905,35 +2882,17 @@ begin
   inherited Create(AOwner);
 end;
 
-procedure TCGButton.DesignCalcRect(var R: TRect; var Flags: TTextFormat);
-var s: string;
-begin
-  s:= Caption;
-  R:= ClientRect;
-  Canvas.Font:= THackControl(Self).Font;
-  Flags:= [tfCalcRect];
-  //if WordWrap then
-  Include(Flags, tfWordBreak);
-  //case Alignment of
-  //  taLeftJustify: Include(Flags, tfLeft);
-  //  taRightJustify: Include(Flags, tfRight);
-  {  taCenter:} Include(Flags, tfCenter);
-  //end;
-  Canvas.TextRect(r, s, Flags);
-  Exclude(Flags, tfCalcRect);
-end;
-
 procedure TCGButton.DesignPaint;
 var s: string;
     r: TRect;
     f: TTextFormat;
 begin
-  inherited;
+  inherited DesignPaint;
   s:= Caption;
-  DesignCalcRect(r, f);
+  DesignCalcRect(r, f, taCenter, True);
 
-  r.Offset(0, (Height - r.Bottom) div 2);
-  r.Offset((Width - r.Right) div 2, 0);
+  r.Offset(0, (Padding.ControlHeight - r.Bottom) div 2);
+  r.Offset((Padding.ControlWidth - r.Right) div 2, 0);
 
   Canvas.Font.Color:= Color;
   Canvas.TextRect(r, s, f);

@@ -20,6 +20,7 @@ type
     function IsFontStored: Boolean;
     procedure FreeText(var AText: TTextObjectBase);
     procedure DesignPaint; override;
+    procedure DesignCalcRect(var R: TRect; var Flags: TTextFormat; AAlignment: TAlignment; AWordWrap: Boolean);
   public
     destructor Destroy; override;
     constructor Create(AOwner: TComponent); override;
@@ -139,9 +140,27 @@ begin
   Color:= clWindowText;
 end;
 
+procedure TControlWithFont.DesignCalcRect(var R: TRect; var Flags: TTextFormat; AAlignment: TAlignment; AWordWrap: Boolean);
+var s: string;
+begin
+  s:= Caption;
+  R:= TRect.Create(0, 0, Padding.ControlWidth, Padding.ControlHeight);
+  Canvas.Font:= THackControl(Self).Font;
+  Flags:= [tfCalcRect];
+  if AWordWrap then
+    Include(Flags, tfWordBreak);
+  case AAlignment of
+    taLeftJustify: Include(Flags, tfLeft);
+    taRightJustify: Include(Flags, tfRight);
+    taCenter: Include(Flags, tfCenter);
+  end;
+  Canvas.TextRect(r, s, Flags);
+  Exclude(Flags, tfCalcRect);
+end;
+
 procedure TControlWithFont.DesignPaint;
 begin
-  inherited;
+  inherited DesignPaint;
   Canvas.Font:= inherited Font;
 end;
 

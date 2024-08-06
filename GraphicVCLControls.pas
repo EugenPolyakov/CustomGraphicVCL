@@ -68,6 +68,11 @@ type
   TChangedFlag = (cfAlignment, cfLayout, cfText, cfWordWrap, cfColor, cfMaxHeight, cfMaxWidth);
   TChangedFlags = set of TChangedFlag;
 
+  TCustomPadding = class (TPadding)
+  protected
+    function GetControlBound(Index: Integer): Integer; override;
+  end;
+
   TTextObjectBase = class (TObject)
   private
     FFontGenerator: TCGFontGenerator;
@@ -338,7 +343,6 @@ type
     procedure SetBorder(const Value: TCGBorderTemplate);
     procedure SetBackground(const Value: TGeneric2DObject);
   protected
-    procedure AdjustClientRect(var Rect: TRect); override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
@@ -352,7 +356,6 @@ type
     function GetClientOrigin: TPoint; override;
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
-    procedure Loaded; override;
     procedure AdjustSize; override;
     property Canvas: TCanvas read GetCanvas;
     procedure DesignPaint; virtual;
@@ -404,8 +407,8 @@ type
     procedure SetAutoHint(const Value: TCGControl);
     procedure SetPadding(const Value: TPadding);
     procedure SetBackground(const Value: TGeneric2DObject);
+    procedure DoPaddingChange(Sender: TObject);
   protected
-    procedure Loaded; override;
     property Canvas: TCanvas read GetCanvas;
     procedure DesignPaint; virtual;
     procedure DoRender(Context: TCGContextBase; R: TRect); virtual; abstract;
@@ -414,6 +417,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
     procedure KeyPress(var Key: Char); virtual;
+    procedure AdjustClientRect(var Rect: TRect); virtual;
   public
     function GetClientRectWithOffset: TRect; virtual;
     procedure FreeContext(Context: TCGContextBase); virtual;
@@ -852,6 +856,7 @@ type
     procedure PrivateRemoveFocus(Removing: Boolean); inline;
     procedure SetMouseControl(AControl: TControl); inline;
     procedure SetWindowPosCustom(X, Y, cx, cy: Integer; uFlags: UINT);
+    procedure ReplacePadding;
   end;
 
   TControlHelper = class helper for TControl
@@ -1008,6 +1013,16 @@ begin
     LMouseEvent.cbSize := SizeOf(LMouseEvent);
     _TrackMouseEvent(@LMouseEvent);
   end;
+end;
+
+procedure TWinControlHelper.ReplacePadding;
+var old: TPadding;
+begin
+  old:= Self.FPadding;
+  Self.FPadding:= TCustomPadding.Create(Self);
+  Self.FPadding.Assign(old);
+  old.Free;
+  Self.FPadding.OnChange:= Self.DoPaddingChange;
 end;
 
 procedure TWinControlHelper.SetMouseControl(AControl: TControl);
@@ -1531,6 +1546,7 @@ begin
       FOnPaint(Self);
 
     R:= GetClientRectWithOffset;
+    AdjustClientRect(R);
     if FBackground.Value <> nil then begin
       FBackground.InitializeContext;
       FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
@@ -1565,6 +1581,14 @@ end;
 
 { TCGControl }
 
+procedure TCGControl.AdjustClientRect(var Rect: TRect);
+begin
+  Inc(Rect.Left, Padding.Left);
+  Inc(Rect.Top, Padding.Top);
+  Dec(Rect.Right, Padding.Right);
+  Dec(Rect.Bottom, Padding.Bottom);
+end;
+
 procedure TCGControl.CMBorderChanged(var Message: TMessage);
 begin
   Invalidate;
@@ -1572,8 +1596,7 @@ end;
 
 procedure TCGControl.CMBorderSizeChanged(var Message: TBorderSizeChanged);
 begin
-  if (FBorder = TCGBorderTemplate(Message.BorderTemplate)) and
-      not (csDesigning in ComponentState) then
+  if FBorder = TCGBorderTemplate(Message.BorderTemplate) then
     Padding.SetBounds(Padding.Left - Message.OldValue + FBorder.BorderSize,
         Padding.Top - Message.OldValue + FBorder.BorderSize,
         Padding.Right - Message.OldValue + FBorder.BorderSize,
@@ -1612,7 +1635,8 @@ end;
 constructor TCGControl.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FPadding:= TPadding.Create(Self);
+  FPadding:= TCustomPadding.Create(Self);
+  FPadding.OnChange:= DoPaddingChange;
 end;
 
 procedure TCGControl.DesignPaint;
@@ -1647,6 +1671,11 @@ begin
 
 end;
 
+procedure TCGControl.DoPaddingChange(Sender: TObject);
+begin
+  Invalidate;
+end;
+
 procedure TCGControl.FreeContext(Context: TCGContextBase);
 begin
   FBackground.FreeContext(Context);
@@ -1663,11 +1692,6 @@ function TCGControl.GetClientRectWithOffset: TRect;
 begin
   Result.Create(TCGWinControl(Parent).GetClientOffset, Width, Height);
   Result.Offset(Left, Top);
-
-  Inc(Result.Left, Padding.Left);
-  Inc(Result.Top, Padding.Top);
-  Dec(Result.Right, Padding.Right);
-  Dec(Result.Bottom, Padding.Bottom);
 end;
 
 function TCGControl.GetScene: TCGScene;
@@ -1702,30 +1726,18 @@ begin
 
 end;
 
-procedure TCGControl.Loaded;
-begin
-  if (FBorder <> nil) and not (csDesigning in ComponentState) then
-    Padding.SetBounds(Padding.Left + FBorder.BorderSize,
-        Padding.Top + FBorder.BorderSize,
-        Padding.Right + FBorder.BorderSize,
-        Padding.Bottom + FBorder.BorderSize);
-  inherited;
-end;
-
 procedure TCGControl.Render(Context: TCGContextBase);
 var R: TRect;
 begin
   R:= GetClientRectWithOffset;
+  AdjustClientRect(R);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
   DoRender(Context, R);
-  if FBorder <> nil then begin
-    R.Create(TCGWinControl(Parent).GetClientOffset, Width, Height);
-    R.Offset(Left, Top);
-    FBorder.DoRender(Context, R);
-  end;
+  if FBorder <> nil then
+    FBorder.DoRender(Context, GetClientRectWithOffset);
 end;
 
 procedure TCGControl.SetAutoHint(const Value: TCGControl);
@@ -1753,9 +1765,12 @@ begin
       FBorder.Subscribe(Self);
       Dec(s, FBorder.BorderSize);
     end;
-    if (s <> 0) and ([csLoading, csDesigning] * ComponentState = []) then
-      Padding.SetBounds(Padding.Left - s, Padding.Top - s, Padding.Right - s, Padding.Bottom - s);
-    Invalidate;
+    if not (csLoading in ComponentState) then begin
+      if s <> 0 then
+        Padding.SetBounds(Padding.Left - s, Padding.Top - s, Padding.Right - s, Padding.Bottom - s)
+      else
+        Invalidate;
+    end;
   end;
 end;
 
@@ -1792,17 +1807,6 @@ end;
 
 { TCGWinControl }
 
-procedure TCGWinControl.AdjustClientRect(var Rect: TRect);
-begin
-  inherited AdjustClientRect(Rect);
-  if (csDesigning in ComponentState) and (FBorder <> nil) then begin
-    Inc(Rect.Left, FBorder.BorderSize);
-    Inc(Rect.Top, FBorder.BorderSize);
-    Dec(Rect.Right, FBorder.BorderSize);
-    Dec(Rect.Bottom, FBorder.BorderSize);
-  end;
-end;
-
 procedure TCGWinControl.AdjustSize;
 begin
   if not (csLoading in ComponentState) and HandleAllocated then
@@ -1827,17 +1831,19 @@ end;
 procedure TCGWinControl.CMBorderSizeChanged(var Message: TBorderSizeChanged);
 var i: Integer;
 begin
-  if (FBorder = TCGBorderTemplate(Message.BorderTemplate)) and
-      not (csDesigning in ComponentState) then
-    Padding.SetBounds(Padding.Left - Message.OldValue + FBorder.BorderSize,
-        Padding.Top - Message.OldValue + FBorder.BorderSize,
-        Padding.Right - Message.OldValue + FBorder.BorderSize,
-        Padding.Bottom - Message.OldValue + FBorder.BorderSize);
+  DisableAlign;
+  try
+    if FBorder = TCGBorderTemplate(Message.BorderTemplate) then
+      Padding.SetBounds(Padding.Left - Message.OldValue + FBorder.BorderSize,
+          Padding.Top - Message.OldValue + FBorder.BorderSize,
+          Padding.Right - Message.OldValue + FBorder.BorderSize,
+          Padding.Bottom - Message.OldValue + FBorder.BorderSize);
 
-  for i := 0 to ControlCount - 1 do
-    Controls[i].Perform(CM_BORDERSIZECHANGED, Message.BorderTemplate, Message.OldValue);
-
-  Invalidate;
+    for i := 0 to ControlCount - 1 do
+      Controls[i].Perform(CM_BORDERSIZECHANGED, Message.BorderTemplate, Message.OldValue);
+  finally
+    EnableAlign;
+  end;
 end;
 
 procedure TCGWinControl.CMComponentDestroying(var Message: TCMComponentDestoyng);
@@ -2119,6 +2125,7 @@ begin
   inherited;
   ControlStyle := [csAcceptsControls];
   ParentFont:= True;
+  TWinControl(Self).ReplacePadding;
 end;
 
 procedure TCGWinControl.CreateHandle;
@@ -2195,6 +2202,7 @@ begin
 end;
 
 procedure TCGWinControl.DesignPaint;
+var R: TRect;
 begin
   with Canvas do
     begin
@@ -2202,8 +2210,11 @@ begin
       Pen.Color:= clBlack;
       Brush.Style := bsClear;
       Rectangle(0, 0, Width, Height);
-      if FBorder <> nil then
+      if FBorder <> nil then begin
+        R:= ClientRect;
+        R.Inflate(-FBorder.BorderSize, -FBorder.BorderSize);
         Rectangle(ClientRect);
+      end
     end;
 end;
 
@@ -2382,16 +2393,6 @@ begin
   inherited;
 end;
 
-procedure TCGWinControl.Loaded;
-begin
-  if (FBorder <> nil) and not (csDesigning in ComponentState) then
-    Padding.SetBounds(Padding.Left + FBorder.BorderSize,
-        Padding.Top + FBorder.BorderSize,
-        Padding.Right + FBorder.BorderSize,
-        Padding.Bottom + FBorder.BorderSize);
-  inherited;
-end;
-
 procedure TCGWinControl.MouseWheelHandler(var Message: TMessage);
 var
   Capture: TControl;
@@ -2417,6 +2418,7 @@ procedure TCGWinControl.Render(Context: TCGContextBase);
 var R: TRect;
 begin
   R:= GetClientRectWithOffset;
+  AdjustClientRect(R);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
@@ -2474,9 +2476,12 @@ begin
       Dec(s, FBorder.BorderSize);
     end;
 
-    if (s <> 0) and ([csLoading, csDesigning] * ComponentState = []) then
-      Padding.SetBounds(Padding.Left - s, Padding.Top - s, Padding.Right - s, Padding.Bottom - s);
-    Invalidate;
+    if not (csLoading in ComponentState) then begin
+      if s <> 0 then
+        Padding.SetBounds(Padding.Left - s, Padding.Top - s, Padding.Right - s, Padding.Bottom - s)
+      else
+        Invalidate;
+    end;
   end;
 end;
 
@@ -4009,8 +4014,6 @@ begin
     old:= FBorderSize;
     FBorderSize:= Value;
     Scene.Perform(CM_BORDERSIZECHANGED, WPARAM(Self), LPARAM(old));
-    if csDesigning in ComponentState then
-      inherited NotifySubscribers(CM_BORDERSIZECHANGED, WPARAM(Self), LPARAM(old));
     NotifySubscribers;
   end;
 end;
@@ -4092,16 +4095,11 @@ begin
 end;
 
 procedure TCGGroupBox.DesignPaint;
-var R: TRect;
-    i, l: Integer;
+var i, l: Integer;
 begin
-  inherited;
+  inherited DesignPaint;
   with Canvas do
     begin
-      if FBorder <> nil then begin
-        R:= ClientRect;
-        Rectangle(R);
-      end;
       Pen.Style := psSolid;
       Brush.Style := bsClear;
       if Orientation = sbHorizontal then begin
@@ -4666,6 +4664,32 @@ begin
   IsDragging := False;
   Result := CurrentRect.Contains(Point(X, Y));
   State := bsUp;
+end;
+
+{ TCustomPadding }
+
+function TCustomPadding.GetControlBound(Index: Integer): Integer;
+begin
+  Result := 0;
+  if Control <> nil then
+    case Index of
+      0:
+        Result := Control.Left + Left;
+      1:
+        Result := Control.Top + Top;
+      2:
+        Result := Control.Width - Left - Right;
+      3:
+        Result := Control.Height - Top - Bottom;
+      4:
+        Result := Control.ExplicitLeft + Left;
+      5:
+        Result := Control.ExplicitTop + Top;
+      6:
+        Result := Control.ExplicitWidth - Left - Right;
+      7:
+        Result := Control.ExplicitHeight - Top - Bottom;
+    end;
 end;
 
 end.

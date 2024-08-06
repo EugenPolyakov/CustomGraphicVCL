@@ -33,28 +33,30 @@ object fExample: TfExample
       Stretch = True
     end
     object CGLabel2: TCGLabel
-      Left = 0
-      Top = 451
-      Width = 619
-      Height = 14
+      Left = 96
+      Top = 387
+      Width = 153
+      Height = 54
       Color = clRed
-      Align = alBottom
+      Alignment = taRightJustify
+      AutoSize = False
       Caption = 'CGLabel2'
-      ExplicitLeft = 3
-      ExplicitTop = 27
-      ExplicitWidth = 100
     end
     object CGScrollBox1: TCGScrollBox
       Left = 152
       Top = 176
       Width = 241
-      Height = 73
+      Height = 185
       Border = CGBorderTemplateRed
+      Padding.Left = 10
+      Padding.Top = 10
+      Padding.Right = 10
+      Padding.Bottom = 10
       VerticalScrollBar = CGScrollBarTemplate1
       object CGEdit1: TCGEdit
-        Left = 0
-        Top = 96
-        Width = 241
+        Left = 10
+        Top = 142
+        Width = 221
         Height = 41
         Hint = 'CGEdit1'
         AutoHint = CGLabel2
@@ -66,24 +68,30 @@ object fExample: TfExample
         ExplicitWidth = 257
       end
       object CGLabel1: TCGLabel
-        Left = 0
-        Top = 0
-        Width = 241
-        Height = 14
+        Left = 10
+        Top = 10
+        Width = 221
+        Height = 50
         Hint = 'CGLabel1'
+        Padding.Top = 10
         AutoHint = CGLabel2
         Align = alTop
+        Alignment = taCenter
+        AutoSize = False
         Caption = 'CGLabel1'
-        ExplicitLeft = 48
-        ExplicitTop = 27
+        Layout = tlCenter
         ExplicitWidth = 46
       end
       object CGSpinEdit1: TCGSpinEdit
-        Left = 0
-        Top = 55
-        Width = 241
+        Left = 10
+        Top = 101
+        Width = 221
         Height = 41
         Hint = 'CGSpinEdit1'
+        Padding.Left = 1
+        Padding.Top = 1
+        Padding.Right = 1
+        Padding.Bottom = 1
         Border = CGBorderTemplateWhite
         AutoHint = CGLabel2
         Align = alTop
@@ -96,11 +104,15 @@ object fExample: TfExample
         ExplicitWidth = 100
       end
       object CGSpinEdit2: TCGSpinEdit
-        Left = 0
-        Top = 14
-        Width = 241
+        Left = 10
+        Top = 60
+        Width = 221
         Height = 41
         Hint = 'CGSpinEdit2'
+        Padding.Left = 1
+        Padding.Top = 1
+        Padding.Right = 1
+        Padding.Bottom = 1
         Border = CGBorderTemplateWhite
         AutoHint = CGLabel2
         Align = alTop
@@ -108,9 +120,8 @@ object fExample: TfExample
         UpDown = UpDownTemplate1
         MaxValue = 100
         MinValue = 0
-        ExplicitLeft = 16
-        ExplicitTop = 40
-        ExplicitWidth = 100
+        ExplicitLeft = 7
+        ExplicitTop = 18
       end
     end
   end
@@ -148,7 +159,7 @@ object fExample: TfExample
   end
   object CGBorderTemplateRed: TCGBorderTemplate
     Scene = CGScene1
-    BorderSize = 1
+    BorderSize = 10
     Left = 464
     Top = 384
   end
