@@ -447,7 +447,6 @@ type
     FClearAlpha: Single;
     FToFreeContextList: TList<TFreeContextEvent>;
     FContextEventList: TList<TCustomContextEvent>;
-    FCanvas: TCanvas;
     FOnCreateContext: TNotifyEvent;
     FKeyControl: TCGControl;
     FTimer: TTimer;
@@ -477,7 +476,6 @@ type
     procedure SetClearMask(const Value: LongWord);
     procedure SetClearAlpha(const Value: Single);
     function GetIsRenderingContextAvailable: Boolean;
-    function GetCanvas: TCanvas;
     function GetRepeatTimer: Cardinal;
     procedure SetRepeatTimer(const Value: Cardinal);
   protected
@@ -488,7 +486,6 @@ type
     procedure OnToFreeContextEvent(Sender: TObject; const Item: TFreeContextEvent; Action: TCollectionNotification);
     procedure ValidateParent(AParent: TWinControl); override;
     procedure SceneChanged(AParent: TWinControl); override;
-    property Canvas: TCanvas read GetCanvas;
     procedure QueueFreeContext;
     procedure CreateWnd; override;
     procedure DestroyWnd; override;
@@ -1246,7 +1243,6 @@ end;
 
 destructor TCGScene.Destroy;
 begin
-  FCanvas.Free;
   FToFreeContextList.OnNotify:= nil;
   FToFreeContextList.Free;
   FContextEventList.Free;
@@ -1297,13 +1293,6 @@ begin
     FContextEventList[i](FContext, False);
 
   inherited FreeContext(Context);
-end;
-
-function TCGScene.GetCanvas: TCanvas;
-begin
-  if FCanvas = nil then
-    FCanvas:= TCanvas.Create;
-  Result:= FCanvas;
 end;
 
 function TCGScene.GetClientOffset: TPoint;
@@ -1522,9 +1511,7 @@ var
   R: TRect;
 begin
   if csDesigning in ComponentState then begin
-    ControlState:= ControlState + [csCustomPaint];
     inherited;
-    ControlState:= ControlState - [csCustomPaint];
     Exit;
   end;
   {p := ClientToScreen(Point(0, 0));
@@ -1643,17 +1630,18 @@ procedure TCGControl.DesignPaint;
 var R: TRect;
 begin
   with Canvas do
-    begin
-      Pen.Style := psDash;
-      Brush.Style := bsClear;
-      Rectangle(0, 0, Width, Height);
+  begin
+    Pen.Style := psDash;
+    Brush.Style := bsClear;
+    Rectangle(0, 0, Width, Height);
 
-      if FBorder <> nil then begin
-        R:= ClientRect;
-        R.Inflate(-FBorder.BorderSize, -FBorder.BorderSize);
-        Rectangle(R);
-      end;
+    if FBorder <> nil then begin
+      Pen.Style := psDashDot;
+      R:= ClientRect;
+      R.Inflate(-FBorder.BorderSize, -FBorder.BorderSize);
+      Rectangle(R);
     end;
+  end;
 end;
 
 destructor TCGControl.Destroy;
@@ -2205,17 +2193,19 @@ procedure TCGWinControl.DesignPaint;
 var R: TRect;
 begin
   with Canvas do
-    begin
-      Pen.Style := psSolid;
-      Pen.Color:= clBlack;
-      Brush.Style := bsClear;
-      Rectangle(0, 0, Width, Height);
-      if FBorder <> nil then begin
-        R:= ClientRect;
-        R.Inflate(-FBorder.BorderSize, -FBorder.BorderSize);
-        Rectangle(ClientRect);
-      end
+  begin
+    Pen.Style := psSolid;
+    Pen.Color:= clBlack;
+    Brush.Style := bsClear;
+    Rectangle(0, 0, Width, Height);
+
+    if FBorder <> nil then begin
+      Pen.Style := psDashDot;
+      R:= ClientRect;
+      R.Inflate(-FBorder.BorderSize, -FBorder.BorderSize);
+      Rectangle(R);
     end;
+  end;
 end;
 
 destructor TCGWinControl.Destroy;
@@ -2570,9 +2560,8 @@ end;
 procedure TCGWinControl.WMEraseBkgnd(var Message: TWmEraseBkgnd);
 begin
   if csDesigning in ComponentState then
-    inherited
-  else
-    Message.Result := 1;
+    FillRect(Message.DC, ClientRect, Brush.Handle);
+  Message.Result := 1;
 end;
 
 procedure TCGWinControl.WMMove(var Message: TWMMove);
@@ -2588,9 +2577,11 @@ end;
 
 procedure TCGWinControl.WMPaint(var Message: TWMPaint);
 begin
-  if csDesigning in ComponentState then
-    inherited
-  else
+  if csDesigning in ComponentState then begin
+    ControlState:= ControlState + [csCustomPaint];
+    inherited;
+    ControlState:= ControlState - [csCustomPaint];
+  end else
     Message.Result := 0;
 end;
 
