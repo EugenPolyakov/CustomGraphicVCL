@@ -218,12 +218,12 @@ type
     Bounds: TRect;
     Captured: TScrollBarElement;
     RepeatTimerValue: DWORD;
-    DoRepeat: Boolean;
     function GetOffset: Single; inline;
     procedure SetOffset(Value: Single); inline;
-    procedure AutoSrollGoUp; inline;
-    procedure AutoSrollGoDown; inline;
+    procedure AutoScrollGoUp; //inline;
+    procedure AutoScrollGoDown; //inline;
   public
+    DoRepeat: Boolean;
     OnScrollOffsetChanged: TOnScrollOffsetChanged;
     Template: TCGScrollBarTemplate;
     ElementState: array [TScrollBarElement] of TScrollBarState;
@@ -239,6 +239,8 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     function MouseInScrollArea(X, Y: Integer): Boolean;
     procedure RepeatTimer;
+    procedure AutoScrollUp;
+    procedure AutoScrollDown;
   end;
 
   TOnScrollOffsetChanged = procedure (const Scroll: TScrollBarStatus) of object;
@@ -249,7 +251,7 @@ type
   public
     Vertical: TScrollBarStatus;
     Horizontal: TScrollBarStatus;
-    procedure ReAlign(const R: TRect; RealWidth, RealHeight: Integer);
+    procedure ReAlign(const R: TRect; RealWidth, RealHeight: Integer; AResetOffsetForDisabled: Boolean = True);
     procedure DoRender(AContext: TCGContextBase; X, Y: Integer);
     procedure MouseMove(Shift: TShiftState; X, Y: Integer);
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
@@ -4168,7 +4170,15 @@ end;
 
 { TScrollBarStatus }
 
-procedure TScrollBarStatus.AutoSrollGoDown;
+procedure TScrollBarStatus.AutoScrollDown;
+begin
+  ElementState[sbeDown]:= sbsPressed;
+  RepeatTimerValue:= GetTickCount;
+  DoRepeat:= False;
+  Captured:= sbeDown;
+end;
+
+procedure TScrollBarStatus.AutoScrollGoDown;
 var ofs: Integer;
 begin
   ofs:= ScrollOffset;
@@ -4177,13 +4187,21 @@ begin
     Dec(ScrollOffset);
 end;
 
-procedure TScrollBarStatus.AutoSrollGoUp;
+procedure TScrollBarStatus.AutoScrollGoUp;
 var ofs: Integer;
 begin
   ofs:= ScrollOffset;
   Offset:= Offset + 0.1;
   if (ofs = ScrollOffset) and (ScrollOffset < ScrollLength) then
     Inc(ScrollOffset);
+end;
+
+procedure TScrollBarStatus.AutoScrollUp;
+begin
+  ElementState[sbeUp]:= sbsPressed;
+  RepeatTimerValue:= GetTickCount;
+  DoRepeat:= False;
+  Captured:= sbeUp;
 end;
 
 procedure TScrollBarStatus.DoRender(AContext: TCGContextBase; X, Y: Integer);
@@ -4281,20 +4299,14 @@ function TScrollBarStatus.MouseDown(Button: TMouseButton;
 
   procedure ScrollUp;
   begin
-    ElementState[sbeUp]:= sbsPressed;
-    RepeatTimerValue:= GetTickCount;
-    AutoSrollGoDown;
-    DoRepeat:= False;
-    Captured:= sbeUp;
+    AutoScrollDown;
+    AutoScrollGoDown;
   end;
 
   procedure ScrollDown;
   begin
-    ElementState[sbeDown]:= sbsPressed;
-    RepeatTimerValue:= GetTickCount;
-    AutoSrollGoUp;
-    DoRepeat:= False;
-    Captured:= sbeDown;
+    AutoScrollUp;
+    AutoScrollGoUp;
   end;
 var
   i: TScrollBarElement;
@@ -4437,9 +4449,9 @@ begin
       DoRepeat:= True;
     if DoRepeat then begin
       if ElementState[sbeUp] = sbsPressed then
-        AutoSrollGoDown
+        AutoScrollGoDown
       else if ElementState[sbeDown] = sbsPressed then
-        AutoSrollGoUp;
+        AutoScrollGoUp;
     end;
   end;
 end;
@@ -4568,7 +4580,7 @@ begin
   Result.Create(-Horizontal.ScrollOffset, -Vertical.ScrollOffset);
 end;
 
-procedure THVScrolls.ReAlign(const R: TRect; RealWidth, RealHeight: Integer);
+procedure THVScrolls.ReAlign(const R: TRect; RealWidth, RealHeight: Integer; AResetOffsetForDisabled: Boolean);
 var ctrlHeight, ctrlWidth: Integer;
 begin
   ctrlHeight:= R.Height;
@@ -4593,19 +4605,19 @@ begin
   if Horizontal.Enabled then begin
     if Horizontal.ScrollOffset + ctrlWidth > RealWidth then
       Horizontal.ScrollOffset:= RealWidth - ctrlWidth;
-    Horizontal.ScrollLength:= RealWidth - ctrlWidth;
 
     Horizontal.Bounds.Create(R.Left, R.Bottom - Horizontal.Template.ButtonSize, R.Right, R.Bottom);
   end else
     Horizontal.ScrollOffset:= 0;
+  Horizontal.ScrollLength:= RealWidth - ctrlWidth;
 
   if Vertical.Enabled then begin
     if Vertical.ScrollOffset + ctrlHeight > RealHeight then
       Vertical.ScrollOffset:= RealHeight - ctrlHeight;
-    Vertical.ScrollLength:= RealHeight - ctrlHeight;
     Vertical.Bounds.Create(R.Right - Vertical.Template.ButtonSize, R.Top, R.Right, R.Bottom);
   end else
     Vertical.ScrollOffset:= 0;
+  Vertical.ScrollLength:= RealHeight - ctrlHeight;
 end;
 
 procedure THVScrolls.RepeatTimer;

@@ -18,6 +18,7 @@ type
     FScrollRealignNeeded: Boolean;
     FActualWidth: Integer;
     FActualHeight: Integer;
+    FAutoScroll: Boolean;
     procedure SetHorizontalScrollBar(const Value: TCGScrollBarTemplate);
     procedure SetVerticalScrollBar(const Value: TCGScrollBarTemplate);
     procedure SetAlignment(const Value: TAlignment);
@@ -31,6 +32,8 @@ type
     procedure CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged); message CM_FONTGENERATORCHANGED;
     procedure SetVerticalOffset(const Value: Integer);
     procedure SetHorizontalOffset(const Value: Integer);
+    procedure SetAutoScroll(const Value: Boolean);
+    procedure CMRepeatTimer(var Message: TMessage); message CM_REPEATTIMER;
   protected
     function GetScrollRect: TRect;
     procedure AdjustSize; override;
@@ -60,6 +63,7 @@ type
     property Alignment: TAlignment read FAlignment write SetAlignment default taLeftJustify;
     property Anchors;
     property AutoSize default True;
+    property AutoScroll: Boolean read FAutoScroll write SetAutoScroll default False;
     property Caption;
     property Constraints;
     property Enabled;
@@ -647,6 +651,32 @@ begin
   AdjustSize;
 end;
 
+procedure TCGLabel.CMRepeatTimer(var Message: TMessage);
+begin
+  inherited;
+  //manual because we have autoscroll
+  FScrollBars.Vertical.RepeatTimer;
+  if AutoScroll and FScrollBars.Vertical.DoRepeat and (FScrollBars.Vertical.ScrollLength > 0) then begin
+    if FScrollBars.Vertical.ScrollOffset = 0 then begin
+      FScrollBars.Vertical.AutoScrollDown;
+      FScrollBars.Vertical.ElementState[sbeUp]:= sbsDefault;
+    end else if FScrollBars.Vertical.ScrollOffset = FScrollBars.Vertical.ScrollLength then begin
+      FScrollBars.Vertical.AutoScrollUp;
+      FScrollBars.Vertical.ElementState[sbeDown]:= sbsDefault;
+    end;
+  end;
+  FScrollBars.Horizontal.RepeatTimer;
+  if AutoScroll and FScrollBars.Horizontal.DoRepeat and (FScrollBars.Horizontal.ScrollLength > 0) then begin
+    if FScrollBars.Horizontal.ScrollOffset = 0 then begin
+      FScrollBars.Horizontal.AutoScrollDown;
+      FScrollBars.Horizontal.ElementState[sbeUp]:= sbsDefault;
+    end else if FScrollBars.Horizontal.ScrollOffset = FScrollBars.Horizontal.ScrollLength then begin
+      FScrollBars.Horizontal.AutoScrollUp;
+      FScrollBars.Horizontal.ElementState[sbeDown]:= sbsDefault;
+    end;
+  end;
+end;
+
 procedure TCGLabel.CMTextChanged(var Message: TMessage);
 begin
   if EnsureTextReady then
@@ -732,7 +762,12 @@ begin
     Dec(R.Top, FScrollBars.Vertical.ScrollOffset);
     EnsureTextReady;
     FText.InitContext;
-    FText.Render(R.Left, R.Top);
+    if (AutoScroll and (FScrollBars.Vertical.ScrollLength > 0)) or FScrollBars.Vertical.Enabled then begin
+      FText.Layout:= tlTop;
+      FText.Render(R.Left, R.Top);
+      FText.Layout:= Layout;
+    end else
+      FText.Render(R.Left, R.Top);
   finally
     Context.PopScissor;
   end;
@@ -803,9 +838,12 @@ procedure TCGLabel.SetActualHeight(const Value: Integer);
 begin
   if FActualHeight <> Value then begin
     BeginReAlignScrolls;
-    FScrollRealignNeeded:= True;
-    FActualHeight := Value;
-    EndReAlignScrolls;
+    try
+      FScrollRealignNeeded:= True;
+      FActualHeight := Value;
+    finally
+      EndReAlignScrolls;
+    end;
   end;
 end;
 
@@ -813,9 +851,12 @@ procedure TCGLabel.SetActualWidth(const Value: Integer);
 begin
   if FActualWidth <> Value then begin
     BeginReAlignScrolls;
-    FScrollRealignNeeded:= True;
-    FActualWidth := Value;
-    EndReAlignScrolls;
+    try
+      FScrollRealignNeeded:= True;
+      FActualWidth := Value;
+    finally
+      EndReAlignScrolls;
+    end;
   end;
 end;
 
@@ -825,6 +866,17 @@ begin
   if FText <> nil then
     FText.Alignment:= Value;
   Invalidate;
+end;
+
+procedure TCGLabel.SetAutoScroll(const Value: Boolean);
+begin
+  if FAutoScroll <> Value then begin
+    FAutoScroll := Value;
+    if FAutoScroll then begin
+      FScrollBars.Vertical.AutoScrollDown;
+      FScrollBars.Horizontal.AutoScrollDown;
+    end;
+  end;
 end;
 
 procedure TCGLabel.SetHorizontalOffset(const Value: Integer);
@@ -1306,6 +1358,7 @@ end;
 
 procedure TCGSpinEdit.CMRepeatTimer(var Message: TMessage);
 begin
+  inherited;
   if FMouseControl.IsDragging and (FMouseControl.State = bsDown) then begin
     if FRepeatTimer + 600 < GetTickCount then
       FDoRepeat:= True;
