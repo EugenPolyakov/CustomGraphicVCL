@@ -812,8 +812,7 @@ end;
 function TCGLabel.GetScrollRect: TRect;
 begin
   Result:= ClientRect;
-  if Border <> nil then
-    Result.Inflate(-Border.BorderSize, -Border.BorderSize);
+  AdjustClientRect(Result);
 end;
 
 procedure TCGLabel.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -2408,8 +2407,7 @@ end;
 function TScrolledWithFont.GetScrollRect: TRect;
 begin
   Result:= ClientRect;
-  if Border <> nil then
-    Result.Inflate(-Border.BorderSize, -Border.BorderSize);
+  AdjustClientRect(Result);
 end;
 
 procedure TScrolledWithFont.MouseDown(Button: TMouseButton; Shift: TShiftState;

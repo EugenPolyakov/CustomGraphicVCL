@@ -251,7 +251,7 @@ type
   public
     Vertical: TScrollBarStatus;
     Horizontal: TScrollBarStatus;
-    procedure ReAlign(const R: TRect; RealWidth, RealHeight: Integer; AResetOffsetForDisabled: Boolean = True);
+    procedure ReAlign(const R: TRect; RealWidth, RealHeight: Integer);
     procedure DoRender(AContext: TCGContextBase; X, Y: Integer);
     procedure MouseMove(Shift: TShiftState; X, Y: Integer);
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
@@ -4580,7 +4580,7 @@ begin
   Result.Create(-Horizontal.ScrollOffset, -Vertical.ScrollOffset);
 end;
 
-procedure THVScrolls.ReAlign(const R: TRect; RealWidth, RealHeight: Integer; AResetOffsetForDisabled: Boolean);
+procedure THVScrolls.ReAlign(const R: TRect; RealWidth, RealHeight: Integer);
 var ctrlHeight, ctrlWidth: Integer;
 begin
   ctrlHeight:= R.Height;
@@ -4610,6 +4610,8 @@ begin
   end else
     Horizontal.ScrollOffset:= 0;
   Horizontal.ScrollLength:= RealWidth - ctrlWidth;
+  if Horizontal.ScrollLength < 0 then
+    Horizontal.ScrollLength:= 0;
 
   if Vertical.Enabled then begin
     if Vertical.ScrollOffset + ctrlHeight > RealHeight then
@@ -4618,6 +4620,8 @@ begin
   end else
     Vertical.ScrollOffset:= 0;
   Vertical.ScrollLength:= RealHeight - ctrlHeight;
+  if Vertical.ScrollLength < 0 then
+    Vertical.ScrollLength:= 0;
 end;
 
 procedure THVScrolls.RepeatTimer;
