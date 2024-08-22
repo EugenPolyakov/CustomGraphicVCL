@@ -1,13 +1,13 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{1B319D7F-7EED-4F77-BE30-8EAB39D8E83F}</ProjectGuid>
-        <MainSource>VCLCustomGraphic.dpk</MainSource>
+        <ProjectGuid>{19718C5C-E62B-47B7-BBB0-06578C311070}</ProjectGuid>
+        <MainSource>VCLCustomGraphic_design.dpk</MainSource>
         <ProjectVersion>16.1</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
-        <TargetedPlatforms>3</TargetedPlatforms>
+        <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Package</AppType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -59,14 +59,14 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-        <SanitizedProjectName>VCLCustomGraphic</SanitizedProjectName>
+        <SanitizedProjectName>VCLCustomGraphic_design</SanitizedProjectName>
         <DCC_Define>CUSTOMOPENGL;$(DCC_Define)</DCC_Define>
         <GenDll>true</GenDll>
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <VerInfo_Locale>1049</VerInfo_Locale>
         <GenPackage>true</GenPackage>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_DcuOutput>$(BDSUSERDIR)\Imports</DCC_DcuOutput>
+        <DCC_DcuOutput>$(BDSCOMMONDIR)\Dcp</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <DCC_E>false</DCC_E>
         <DCC_N>false</DCC_N>
@@ -75,7 +75,7 @@
         <DCC_K>false</DCC_K>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>rtl;vcl;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;vcl;VCLCustomGraphic;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>1033</VerInfo_Locale>
@@ -84,7 +84,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UsePackage>rtl;vcl;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;vcl;VCLCustomGraphic;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -124,20 +124,9 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="designide.dcp"/>
-        <DCCReference Include="GraphicVCLBase.pas"/>
-        <DCCReference Include="GraphicToolsAPI.pas"/>
-        <DCCReference Include="GraphicVCLControls.pas"/>
-        <DCCReference Include="GraphicVCLCommonControls.pas"/>
-        <DCCReference Include="GraphicVCLExtension.pas"/>
-        <None Include="ModelSupport_VCLCustomGraphic\default.txaPackage"/>
-        <None Include="ModelSupport_VCLCustomGraphic\default.txvpck"/>
-        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLExtension\default.txvpck"/>
-        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLBase\default.txvpck"/>
-        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLControls\default.txvpck"/>
-        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLCommonControls\default.txvpck"/>
-        <None Include="ModelSupport_VCLCustomGraphic\GraphicToolsAPI\default.txvpck"/>
-        <None Include="ModelSupport_VCLCustomGraphic\GraphicVCLExtension\default.txaPackage"/>
-        <None Include="ModelSupport_VCLCustomGraphic\Class Diagram.txvcls"/>
+        <DCCReference Include="VCLCustomGraphic.dcp"/>
+        <DCCReference Include="..\Source\GraphicToolsAPI.pas"/>
+        <None Include="ModelSupport_VCLCustomGraphic_design\default.txaPackage"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -156,16 +145,23 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">VCLCustomGraphic.dpk</Source>
+                    <Source Name="MainSource">VCLCustomGraphic_design.dpk</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclfmxstd210.bpl">Embarcadero FMX Standard Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclbindcompfmx210.bpl">Embarcadero LiveBindings Components FireMonkey</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k210.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp210.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="E:\Program Files\Raize\CS5\Bin\CodeSiteExpressPkg_Design210.bpl">CodeSite Express 5.1.6</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\15.0\Bpl\VCLCustomGraphic_design.bpl" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>VCLCustomGraphic_design.bpl</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
                         <Overwrite>true</Overwrite>
@@ -469,7 +465,7 @@
             </Deployment>
             <Platforms>
                 <Platform value="Win32">True</Platform>
-                <Platform value="Win64">True</Platform>
+                <Platform value="Win64">False</Platform>
             </Platforms>
             <ModelSupport>True</ModelSupport>
         </BorlandProject>

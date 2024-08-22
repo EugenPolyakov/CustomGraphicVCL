@@ -144,6 +144,7 @@ type
   TCGTexturedBilboard = class;
   TCGTexturedBilboardClass = class of TCGTexturedBilboard;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGTextureLibrary = class (TComponent)
   private
     FBilboardClass: TCGTexturedBilboardClass;

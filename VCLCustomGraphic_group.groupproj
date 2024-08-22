@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{59BF7796-87BB-4F49-AFFA-C245CAA58494}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Packages\VCLCustomGraphic_design.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Packages\VCLCustomGraphic.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="VCLCustomGraphic_design">
+        <MSBuild Projects="Packages\VCLCustomGraphic_design.dproj"/>
+    </Target>
+    <Target Name="VCLCustomGraphic_design:Clean">
+        <MSBuild Projects="Packages\VCLCustomGraphic_design.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="VCLCustomGraphic_design:Make">
+        <MSBuild Projects="Packages\VCLCustomGraphic_design.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="VCLCustomGraphic">
+        <MSBuild Projects="Packages\VCLCustomGraphic.dproj"/>
+    </Target>
+    <Target Name="VCLCustomGraphic:Clean">
+        <MSBuild Projects="Packages\VCLCustomGraphic.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="VCLCustomGraphic:Make">
+        <MSBuild Projects="Packages\VCLCustomGraphic.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="VCLCustomGraphic_design;VCLCustomGraphic"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="VCLCustomGraphic_design:Clean;VCLCustomGraphic:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="VCLCustomGraphic_design:Make;VCLCustomGraphic:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

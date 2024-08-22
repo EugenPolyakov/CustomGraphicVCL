@@ -7,6 +7,7 @@ uses System.SysUtils, System.Classes, Vcl.StdCtrls, Winapi.Windows, Winapi.Messa
   System.Generics.Collections, GraphicVCLExtension;
 
 type
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGLabel = class (TControlWithFont)
   private
     FLayout: TTextLayout;
@@ -19,6 +20,7 @@ type
     FActualWidth: Integer;
     FActualHeight: Integer;
     FAutoScroll: Boolean;
+    FOptions: TAutoScrollOptions;
     procedure SetHorizontalScrollBar(const Value: TCGScrollBarTemplate);
     procedure SetVerticalScrollBar(const Value: TCGScrollBarTemplate);
     procedure SetAlignment(const Value: TAlignment);
@@ -56,8 +58,8 @@ type
     procedure FreeContext(Context: TCGContextBase); override;
     destructor Destroy; override;
     constructor Create(AOwner: TComponent); override;
-    property VerticalOffset: Integer read FScrollBars.Vertical.ScrollOffset write SetVerticalOffset;
-    property HorizontalOffset: Integer read FScrollBars.Horizontal.ScrollOffset write SetHorizontalOffset;
+    property VerticalOffset: Integer read FScrollBars.Vertical.ScrollStatus.ScrollOffset write SetVerticalOffset;
+    property HorizontalOffset: Integer read FScrollBars.Horizontal.ScrollStatus.ScrollOffset write SetHorizontalOffset;
   published
     property Align;
     property Alignment: TAlignment read FAlignment write SetAlignment default taLeftJustify;
@@ -86,6 +88,7 @@ type
 
   TBilboardNotify = procedure (ABilboard: TCGBilboard) of object;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGButton = class (TControlWithFont)
   private type
     TBilboardContext = TContextController<TCGBilboard>;
@@ -148,6 +151,7 @@ type
     property OnRenderingNewPicture: TBilboardNotify read FOnRenderingNewPicture write FOnRenderingNewPicture;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGEdit = class (TControlWithInput)
   private
     FSelectionColor: TColor;
@@ -220,6 +224,7 @@ type
     property HideSelection: Boolean read FHideSelection write SetHideSelection default True;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGSpinEdit = class (TCGEdit)
   private
     FMinValue: Integer;
@@ -263,6 +268,7 @@ type
     FActualHeight: Integer;
     FScrollRealignCount: Integer;
     FScrollRealignNeeded: Boolean;
+    FOptions: TAutoScrollOptions;
     procedure CMRepeatTimer(var Message: TMessage); message CM_REPEATTIMER;
     procedure SetActualHeight(const Value: Integer);
     procedure SetActualWidth(const Value: Integer);
@@ -285,7 +291,7 @@ type
       X, Y: Integer); override;
     property ActualWidth: Integer read FActualWidth write SetActualWidth;
     property ActualHeight: Integer read FActualHeight write SetActualHeight;
-    procedure OnScroll(const Scroll: TScrollBarStatus); virtual;
+    procedure OnScroll(AScroll: Pointer); virtual;
     property HorizontalScrollBar: TCGScrollBarTemplate read FScrollBars.Horizontal.Template write SetHorizontalScrollBar;
     property VerticalScrollBar: TCGScrollBarTemplate read FScrollBars.Vertical.Template write SetVerticalScrollBar;
   public
@@ -347,6 +353,7 @@ type
     property Items: TStrings read FItems write SetItems;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGListBox = class (TCustomList)
   private
     FItemIndex: Integer;
@@ -396,13 +403,14 @@ type
     property OnSelectionChange: TNotifyEvent read FOnSelectionChange write FOnSelectionChange;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TColoredLabel = class (TCustomList)
   private
     FAutoScroll: Boolean;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
     procedure SetAutoScroll(const Value: Boolean);
   protected
-    procedure OnScroll(const Scroll: TScrollBarStatus); override;
+    procedure OnScroll(AScroll: Pointer); override;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
   public
     procedure Add(const AText: string; AColor: TColor);
@@ -436,6 +444,7 @@ type
   TCellClick = procedure (Sender: TObject; Button: TMouseButton; X, Y: Integer) of object;
   THeaderClick = procedure (Sender: TObject; Button: TMouseButton; Index: Integer) of object;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGStringGrid = class (TScrolledWithFont)
   private
     FHeaderBackground: TContextController<TGeneric2DObject>;
@@ -502,7 +511,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure OnScroll(const Scroll: TScrollBarStatus); override;
+    procedure OnScroll(AScroll: Pointer); override;
     procedure ChangeScale(M: Integer; D: Integer); override;
   public
     procedure FreeContext(Context: TCGContextBase); override;
@@ -655,8 +664,8 @@ procedure TCGLabel.CMRepeatTimer(var Message: TMessage);
 begin
   inherited;
   //manual because we have autoscroll
-  FScrollBars.Vertical.RepeatTimer;
-  if AutoScroll and FScrollBars.Vertical.DoRepeat and (FScrollBars.Vertical.ScrollLength > 0) then begin
+  FScrollBars.Vertical.RepeatTimer(FOptions);
+  if AutoScroll and FScrollBars.Vertical.ScrollStatus.DoRepeat and (FScrollBars.Vertical.ScrollLength > 0) then begin
     if FScrollBars.Vertical.ScrollOffset = 0 then begin
       FScrollBars.Vertical.AutoScrollDown;
       FScrollBars.Vertical.ElementState[sbeUp]:= sbsDefault;
@@ -665,8 +674,8 @@ begin
       FScrollBars.Vertical.ElementState[sbeDown]:= sbsDefault;
     end;
   end;
-  FScrollBars.Horizontal.RepeatTimer;
-  if AutoScroll and FScrollBars.Horizontal.DoRepeat and (FScrollBars.Horizontal.ScrollLength > 0) then begin
+  FScrollBars.Horizontal.RepeatTimer(FOptions);
+  if AutoScroll and FScrollBars.Horizontal.ScrollStatus.DoRepeat and (FScrollBars.Horizontal.ScrollLength > 0) then begin
     if FScrollBars.Horizontal.ScrollOffset = 0 then begin
       FScrollBars.Horizontal.AutoScrollDown;
       FScrollBars.Horizontal.ElementState[sbeUp]:= sbsDefault;
@@ -682,8 +691,8 @@ begin
   if EnsureTextReady then
     FText.Text:= Caption;
 
-  FScrollBars.Vertical.ScrollOffset:= 0;
-  FScrollBars.Horizontal.ScrollOffset:= 0;
+  FScrollBars.Vertical.ScrollStatus.ScrollOffset:= 0;
+  FScrollBars.Horizontal.ScrollStatus.ScrollOffset:= 0;
 
   AdjustSize;
   Invalidate;
@@ -692,6 +701,9 @@ end;
 constructor TCGLabel.Create(AOwner: TComponent);
 begin
   inherited;
+  FOptions.RepeatDelay:= 1000;
+  FOptions.IsRelative:= True;
+  FOptions.FloatOffset:= 0.1;
   ControlStyle:= ControlStyle + [csSetCaption];
   AutoSize:= True;
   FScrollBars.Vertical.IsVertical:= True;
@@ -817,7 +829,7 @@ end;
 
 procedure TCGLabel.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  FScrollBars.MouseDown(Button, Shift, X, Y);
+  FScrollBars.MouseDown(Button, Shift, X, Y, FOptions);
   inherited;
 end;
 
@@ -1560,7 +1572,7 @@ begin
   end;
 end;
 
-procedure TColoredLabel.OnScroll(const Scroll: TScrollBarStatus);
+procedure TColoredLabel.OnScroll(AScroll: Pointer);
 begin
   FAutoScroll:= FScrollBars.Vertical.ScrollOffset = FScrollBars.Vertical.ScrollLength;
 end;
@@ -2078,7 +2090,7 @@ begin
     Invalidate;
 end;
 
-procedure TCGStringGrid.OnScroll(const Scroll: TScrollBarStatus);
+procedure TCGStringGrid.OnScroll(AScroll: Pointer);
 begin
   FAutoScroll:= FScrollBars.Vertical.ScrollOffset = FScrollBars.Vertical.ScrollLength;
 end;
@@ -2368,16 +2380,17 @@ end;
 procedure TScrolledWithFont.CMRepeatTimer(var Message: TMessage);
 begin
   inherited;
-  FScrollBars.RepeatTimer;
+  FScrollBars.RepeatTimer(FOptions);
 end;
 
 constructor TScrolledWithFont.Create(AOwner: TComponent);
-var t: TOnScrollOffsetChanged;
 begin
   inherited;
+  FOptions.RepeatDelay:= 600;
+  FOptions.IsRelative:= True;
+  FOptions.FloatOffset:= 0.1;
   FScrollBars.Vertical.IsVertical:= True;
-  t:= OnScroll;
-  FScrollBars.Vertical.OnScrollOffsetChanged:= TScrollBarStatus.TOnScrollOffsetChanged(t);
+  FScrollBars.Vertical.OnScrollOffsetChanged:= OnScroll;
 end;
 
 function TScrolledWithFont.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
@@ -2413,7 +2426,7 @@ end;
 procedure TScrolledWithFont.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 begin
-  FScrollBars.MouseDown(Button, Shift, X, Y);
+  FScrollBars.MouseDown(Button, Shift, X, Y, FOptions);
   inherited;
 end;
 
@@ -2430,7 +2443,7 @@ begin
   inherited;
 end;
 
-procedure TScrolledWithFont.OnScroll(const Scroll: TScrollBarStatus);
+procedure TScrolledWithFont.OnScroll(AScroll: Pointer);
 begin
 
 end;

@@ -30,6 +30,7 @@ type
     property Color default clWindowText;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TUpDownTemplate = class (TSceneComponent)
   private
     FButtonHoverUp: TContextController<TGeneric2DObject>;
@@ -79,6 +80,7 @@ type
     property OnKeyUp: TKeyEvent read FOnKeyUp write FOnKeyUp;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
   TCGStackPanel = class (TCGScrollBox)
   private
     FWrap: Boolean;
