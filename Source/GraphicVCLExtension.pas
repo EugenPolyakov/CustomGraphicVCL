@@ -430,7 +430,7 @@ var
     Result:= False;
   end;
 var
-  I, J: Integer;
+  I, J, K: Integer;
   Control: TControl;
   Bounds: TRect;
   minSize: Integer;
@@ -444,9 +444,12 @@ begin
         Control:= Controls[I];
         if minSize < Control.Height then
           minSize:= Control.Height;
-        J := 0;
-        while (J < AlignList.Count) and (Control.Top > TControl(AlignList[J]).Top) do
-          Inc(J);
+        J := AlignList.Count;
+        for K := AlignList.Count - 1 downto 0 do
+          if Control.Top < TControl(AlignList[K]).Top then begin
+            J:= K + 1;
+            Break;
+          end;
         AlignList.Insert(J, Control);
       end;
 
@@ -457,9 +460,12 @@ begin
         Control:= Controls[I];
         if minSize < Control.Width then
           minSize:= Control.Width;
-        J := 0;
-        while (J < AlignList.Count) and (Control.Left > TControl(AlignList[J]).Left) do
-          Inc(J);
+        J := AlignList.Count;
+        for K := AlignList.Count - 1 downto 0 do
+          if Control.Left < TControl(AlignList[K]).Left then begin
+            J:= K + 1;
+            Break;
+          end;
         AlignList.Insert(J, Control);
       end;
 
