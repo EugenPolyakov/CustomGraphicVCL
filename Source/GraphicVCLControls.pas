@@ -1752,11 +1752,11 @@ procedure TCGControl.Render(Context: TCGContextBase);
 var R: TRect;
 begin
   R:= GetClientRectWithOffset;
-  AdjustClientRect(R);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
+  AdjustClientRect(R);
   DoRender(Context, R);
   if FBorder <> nil then
     FBorder.DoRender(Context, GetClientRectWithOffset);
@@ -2451,11 +2451,11 @@ procedure TCGWinControl.Render(Context: TCGContextBase);
 var R: TRect;
 begin
   R:= GetClientRectWithOffset;
-  AdjustClientRect(R);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
+  AdjustClientRect(R);
   RenderChild(Context);
   if FBorder <> nil then
     FBorder.DoRender(Context, GetClientRectWithOffset);
@@ -3908,11 +3908,11 @@ var R: TRect;
     b: TPoint;
 begin
   R.Create(inherited GetClientOffset, Width, Height);
-  AdjustClientRect(R);
   if FBackground.Value <> nil then begin
     FBackground.InitializeContext;
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
+  AdjustClientRect(R);
   Context.PushScissor(TScissorRect.Create(R, Scene.Height - R.Bottom));
   try
     RenderChild(Context);
