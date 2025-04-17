@@ -1293,8 +1293,8 @@ end;
 procedure TCGScene.DoFreeContext;
 begin
   if not (csDesigning in ComponentState) then begin
-    FIsContextInitialized:= False;
-    if Assigned(FContext) then begin
+    if IsRenderingContextAvailable then begin
+      FIsContextInitialized:= False;
       FContext.Activate;
       try
         FreeContext(FContext);
@@ -1317,12 +1317,12 @@ end;
 procedure TCGScene.FreeContext(Context: TCGContextBase);
 var I: Integer;
 begin
-  QueueFreeContext;
-
   for i := 0 to FContextEventList.Count - 1 do
     FContextEventList[i](FContext, False);
 
   inherited FreeContext(Context);
+
+  QueueFreeContext;
 end;
 
 function TCGScene.GetClientOffset: TPoint;
