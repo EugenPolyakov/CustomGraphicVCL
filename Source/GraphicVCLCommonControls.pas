@@ -3084,9 +3084,12 @@ procedure TCGButton.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited MouseUp(Button, Shift, X, Y);
-  if csClicked in ControlState then
+  if not (csClicked in ControlState) and (FState = bsDown) then
   begin
-    FState := bsUp;
+    if (X >= 0) and (X < ClientWidth) and (Y >= 0) and (Y <= ClientHeight) then
+      FState:= bsExclusive
+    else
+      FState := bsUp;
     Invalidate;
   end;
 end;
