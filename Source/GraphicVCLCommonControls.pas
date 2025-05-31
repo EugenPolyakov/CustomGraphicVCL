@@ -647,7 +647,7 @@ procedure TCGLabel.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
-    if Message.IsFontChanged then begin
+    if not Message.IsFontChanged then begin
       FText.DoInvalid;
       if Scene <> nil then
         Scene.AddToFreeContext(FText.FreeContextAndDestroy)
@@ -974,7 +974,7 @@ procedure TCGEdit.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
-    if Message.IsFontChanged then begin
+    if not Message.IsFontChanged then begin
       FText.DoInvalid;
       if Scene <> nil then
         Scene.AddToFreeContext(FText.FreeContextAndDestroy)
@@ -1654,7 +1654,7 @@ var
   l: TList<TTextObjectBase>;
 begin
   inherited;
-  if Message.IsFontChanged then begin
+  if not Message.IsFontChanged then begin
     for i:= 0 to High(FHeaderTitles) do
       if FHeaderTitles[i] <> nil then
         FHeaderTitles[i].DoInvalid;
@@ -2777,7 +2777,7 @@ var
   t: TTextObjectWithObject;
 begin
   inherited;
-  if Message.IsFontChanged then begin
+  if not Message.IsFontChanged then begin
     for i := 0 to FItems.Count - 1 do
       TCGListBoxStrings(FItems).FLines[i].Text.DoInvalid;
     if Font <> nil then
