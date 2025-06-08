@@ -162,6 +162,7 @@ type
     FSelStart, FSelEnd: TTextPosition;
     FOnChange: TNotifyEvent;
     FHideSelection: Boolean;
+    FReadOnly: Boolean;
     procedure CMTextChanged(var Message: TMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TMessage); message CM_COLORCHANGED;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
@@ -222,6 +223,7 @@ type
     property OnMouseLeave;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property HideSelection: Boolean read FHideSelection write SetHideSelection default True;
+    property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
   end;
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
@@ -647,7 +649,7 @@ procedure TCGLabel.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
-    if not Message.IsFontChanged then begin
+    if not Message.IsFontParamsChanged then begin
       FText.DoInvalid;
       if Scene <> nil then
         Scene.AddToFreeContext(FText.FreeContextAndDestroy)
@@ -974,7 +976,7 @@ procedure TCGEdit.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
-    if not Message.IsFontChanged then begin
+    if not Message.IsFontParamsChanged then begin
       FText.DoInvalid;
       if Scene <> nil then
         Scene.AddToFreeContext(FText.FreeContextAndDestroy)
@@ -1172,7 +1174,8 @@ begin
         FSelStart:= FSelEnd;
       Invalidate;
     end;
-    VK_DELETE, VK_BACK: begin
+    VK_DELETE, VK_BACK:
+    if not ReadOnly then begin
       EnsureTextReady;
       if SelLength > 0 then begin
         s:= Text;
@@ -1202,15 +1205,17 @@ begin
   case Key of
     #0..#31: ;
   else
-    s:= Text;
-    if SelLength > 0 then begin
-      Delete(s, SelStart + 1, SelLength);
-      SelLength:= 0;
+    if not ReadOnly then begin
+      s:= Text;
+      if SelLength > 0 then begin
+        Delete(s, SelStart + 1, SelLength);
+        SelLength:= 0;
+      end;
+      Insert(Key, s, SelStart + 1);
+      Text:= s;
+      if Text = s then
+        SelStart:= SelStart + 1;
     end;
-    Insert(Key, s, SelStart + 1);
-    Text:= s;
-    if Text = s then
-      SelStart:= SelStart + 1;
   end;
 end;
 
@@ -1327,7 +1332,8 @@ end;
 
 procedure TCGEdit.WMClear(var Message: TWMClear);
 begin
-  SelText:= '';
+  if not ReadOnly then
+    SelText:= '';
 end;
 
 procedure TCGEdit.WMCopy(var Message: TWMCopy);
@@ -1345,15 +1351,18 @@ begin
   s:= SelText;
   if s <> '' then begin
     Clipboard.AsText:= s;
-    SelText:= '';
+    if not ReadOnly then
+      SelText:= '';
   end;
 end;
 
 procedure TCGEdit.WMPaste(var Message: TWMPaste);
 var s: string;
 begin
-  s:= Clipboard.AsText;
-  SelText:= s;
+  if not ReadOnly then begin
+    s:= Clipboard.AsText;
+    SelText:= s;
+  end;
 end;
 
 procedure TCGEdit.WMWindowPosChanged(var Message: TWMWindowPosChanged);
@@ -1370,7 +1379,7 @@ end;
 procedure TCGSpinEdit.CMRepeatTimer(var Message: TMessage);
 begin
   inherited;
-  if FMouseControl.IsDragging and (FMouseControl.State = bsDown) then begin
+  if FMouseControl.IsDragging and (FMouseControl.State = bsDown) and not ReadOnly then begin
     if FRepeatTimer + 600 < GetTickCount then
       FDoRepeat:= True;
     if FDoRepeat then begin
@@ -1415,7 +1424,7 @@ function TCGSpinEdit.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
   Result:= inherited;
-  if not Result then begin
+  if not Result and not ReadOnly then begin
     IncrementValue(WheelDelta div 120);
     Result:= True;
   end;
@@ -1464,7 +1473,7 @@ procedure TCGSpinEdit.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var R: TRect;
 begin
-  if (UpDown <> nil) and not FMouseControl.IsDragging and (Button = mbLeft) then begin
+  if (UpDown <> nil) and not FMouseControl.IsDragging and (Button = mbLeft) and not ReadOnly then begin
     R:= ClientRect;
     FUpIsActive:= FMouseControl.ProcessDown(Rect(R.Right - UpDown.ButtonWidth, R.Top, R.Right, R.Top + R.Height div 2), X, Y);
     if FUpIsActive or
@@ -1654,7 +1663,7 @@ var
   l: TList<TTextObjectBase>;
 begin
   inherited;
-  if not Message.IsFontChanged then begin
+  if not Message.IsFontParamsChanged then begin
     for i:= 0 to High(FHeaderTitles) do
       if FHeaderTitles[i] <> nil then
         FHeaderTitles[i].DoInvalid;
@@ -2777,7 +2786,7 @@ var
   t: TTextObjectWithObject;
 begin
   inherited;
-  if not Message.IsFontChanged then begin
+  if not Message.IsFontParamsChanged then begin
     for i := 0 to FItems.Count - 1 do
       TCGListBoxStrings(FItems).FLines[i].Text.DoInvalid;
     if Font <> nil then

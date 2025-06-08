@@ -18,7 +18,7 @@ const
 type
   TCMFontGeneratorChanged = record
     Msg: Cardinal;
-    IsFontChanged: LongBool;
+    IsFontParamsChanged: LongBool;
     IsFontChangedFiller: TDWordFiller;
     FontObject: Pointer;
     Result: LRESULT;
