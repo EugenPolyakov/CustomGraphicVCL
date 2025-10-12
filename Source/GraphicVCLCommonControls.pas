@@ -278,6 +278,9 @@ type
     procedure SetVerticalScrollBar(const Value: TCGScrollBarTemplate);
     procedure WMLButtonDblClk(var Message: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
   protected
+    FLastMouseClickMessage: DWORD;
+    FIsScrollCaptured: Boolean;
+    FLastMouseTime: DWORD;
     FScrollBars: THVScrolls;
     property ScrollRealignNeeded: Boolean read FScrollRealignNeeded;
     function GetScrollRect: TRect; virtual;
@@ -296,6 +299,8 @@ type
     procedure OnScroll(AScroll: Pointer); virtual;
     property HorizontalScrollBar: TCGScrollBarTemplate read FScrollBars.Horizontal.Template write SetHorizontalScrollBar;
     property VerticalScrollBar: TCGScrollBarTemplate read FScrollBars.Vertical.Template write SetVerticalScrollBar;
+    procedure ResetInlineMouseEvent; override;
+    function TransformInlineMouseEvent(const AMessage: TWMMouse): DWORD; override;
   public
     constructor Create(AOwner: TComponent); override;
   published
@@ -377,11 +382,13 @@ type
       X, Y: Integer); override;
     procedure DoRender(Context: TCGContextBase; R: TRect); override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
+    function TransformInlineMouseEvent(const AMessage: TWMMouse): DWORD; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Clear;
     procedure FreeContext(Context: TCGContextBase); override;
+    function GetItemIndexAt(X, Y: Integer): Integer;
     property SelectionBackground: TGeneric2DObject read FSelectionBackground.Value write SetSelectionBackground;
   published
     property Alignment;
@@ -2400,6 +2407,7 @@ begin
   FOptions.FloatOffset:= 0.1;
   FScrollBars.Vertical.IsVertical:= True;
   FScrollBars.Vertical.OnScrollOffsetChanged:= OnScroll;
+  ResetInlineMouseEvent;
 end;
 
 function TScrolledWithFont.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
@@ -2416,6 +2424,8 @@ procedure TScrolledWithFont.DoRealign;
 begin
   FScrollBars.ReAlign(GetScrollRect, FActualWidth, FActualHeight);
   FScrollRealignNeeded:= False;
+
+  FIsMultyControl:= FScrollBars.Vertical.Enabled or FScrollBars.Horizontal.Enabled;
 end;
 
 procedure TScrolledWithFont.EndReAlignScrolls;
@@ -2435,7 +2445,7 @@ end;
 procedure TScrolledWithFont.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 begin
-  FScrollBars.MouseDown(Button, Shift, X, Y, FOptions);
+  FIsScrollCaptured:= FScrollBars.MouseDown(Button, Shift, X, Y, FOptions);
   inherited;
 end;
 
@@ -2455,6 +2465,14 @@ end;
 procedure TScrolledWithFont.OnScroll(AScroll: Pointer);
 begin
 
+end;
+
+procedure TScrolledWithFont.ResetInlineMouseEvent;
+begin
+  inherited;
+
+  FLastMouseClickMessage:= 1;
+  FIsScrollCaptured:= False;
 end;
 
 procedure TScrolledWithFont.SetActualHeight(const Value: Integer);
@@ -2499,6 +2517,44 @@ begin
   end;
 end;
 
+function TScrolledWithFont.TransformInlineMouseEvent(const AMessage: TWMMouse): DWORD;
+var
+  P: TPoint;
+  isScroll: Boolean;
+begin
+  if (Width > 32768) or (Height > 32768) then
+    P:= CalcCursorPos
+  else
+    P:= SmallPointToPoint(AMessage.Pos);
+  Result:= AMessage.Msg;
+  case AMessage.Msg of
+    WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN: begin
+      isScroll:= FScrollBars.MouseInScrollArea(P.X, P.Y);
+      if (isScroll and not FIsScrollCaptured) or (AMessage.Msg <> FLastMouseClickMessage - 1) then begin
+        FLastMouseClickMessage:= AMessage.Msg;
+        if not isScroll then
+          FIsScrollCaptured:= False;
+        FLastMouseTime:= GetTickCount;
+      end else if FLastMouseTime + GetDoubleClickTime > GetTickCount then begin
+        //convert to XBUTTONDBLCLK
+        Inc(Result, WM_LBUTTONDBLCLK - WM_LBUTTONDOWN);
+      end else begin
+        FLastMouseClickMessage:= AMessage.Msg;
+        FLastMouseTime:= GetTickCount;
+      end;
+    end;
+    WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP: begin
+      isScroll:= FScrollBars.MouseInScrollArea(P.X, P.Y);
+      if (isScroll and not FIsScrollCaptured) or (AMessage.Msg <> FLastMouseClickMessage + 1) then begin
+        if not isScroll then
+          FIsScrollCaptured:= False;
+      end else begin
+        Inc(FLastMouseClickMessage);
+      end;
+    end;
+  end;
+end;
+
 procedure TScrolledWithFont.WMLButtonDblClk(var Message: TWMLButtonDblClk);
 var p: TPoint;
     old: TControlStyle;
@@ -2506,7 +2562,7 @@ begin
   with Message do
     if (Width > 32768) or (Height > 32768) then
       with CalcCursorPos do
-       p.Create(X, Y)
+        p.Create(X, Y)
     else
       p.Create(XPos, YPos);
   old:= ControlStyle;
@@ -2530,6 +2586,7 @@ constructor TCGListBox.Create(AOwner: TComponent);
 begin
   inherited;
   FItemIndex:= -1;
+  FIsMultyControl:= True;
 end;
 
 destructor TCGListBox.Destroy;
@@ -2558,6 +2615,7 @@ procedure TCGListBox.DoRealign;
 begin
   inherited;
   SetItemIndex(FItemIndex);
+  FIsMultyControl:= True;
 end;
 
 procedure TCGListBox.DoRender(Context: TCGContextBase; R: TRect);
@@ -2616,6 +2674,14 @@ begin
   Result:= FItemIndex;
 end;
 
+function TCGListBox.GetItemIndexAt(X, Y: Integer): Integer;
+begin
+  if (X >= 0) and (X < IfThen(FScrollBars.Vertical.Enabled, FScrollBars.Vertical.Bounds.Left, Width)) then
+    Result:= (FScrollBars.Vertical.ScrollOffset + Y) div Font.LineHeight
+  else
+    Result:= -1;
+end;
+
 procedure TCGListBox.KeyDown(var Key: Word; Shift: TShiftState);
 begin
   inherited;
@@ -2640,7 +2706,7 @@ procedure TCGListBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
 begin
   if not FScrollBars.MouseInScrollArea(X, Y) then
     if Button = mbLeft then
-      ItemIndex:= (FScrollBars.Vertical.ScrollOffset + Y) div Font.LineHeight;
+      ItemIndex:= (FScrollBars.Vertical.ScrollOffset + Y) div Font.LineHeight;//GetItemIndexByPosition
   inherited;
 end;
 
@@ -2659,6 +2725,29 @@ end;
 procedure TCGListBox.SetSelectionBackground(const Value: TGeneric2DObject);
 begin
   FSelectionBackground.UpdateValue(Value, Scene);
+end;
+
+function TCGListBox.TransformInlineMouseEvent(const AMessage: TWMMouse): DWORD;
+var
+  P: TPoint;
+begin
+  if (Width > 32768) or (Height > 32768) then
+    P:= CalcCursorPos
+  else
+    P:= SmallPointToPoint(AMessage.Pos);
+
+  Result:= inherited TransformInlineMouseEvent(AMessage);
+
+  case Result of
+    WM_LBUTTONDBLCLK, WM_RBUTTONDBLCLK, WM_MBUTTONDBLCLK, WM_XBUTTONDBLCLK:
+    if not FScrollBars.MouseInScrollArea(P.X, P.Y) then
+      if GetItemIndexAt(P.X, P.Y) <> ItemIndex then begin
+        //convert to XBUTTONDOWN back
+        Dec(Result, WM_LBUTTONDBLCLK - WM_LBUTTONDOWN);
+        //new counter
+        FLastMouseTime:= GetTickCount;
+      end;
+  end;
 end;
 
 procedure TCGListBox.WMClear(var Message: TWMClear);

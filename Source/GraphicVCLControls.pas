@@ -242,7 +242,7 @@ type
   public
     ScrollStatus: TSrollStatus;
   private
-    Bounds: TRect;
+    FBounds: TRect;
     Captured: TScrollBarElement;
   public
     Template: TCGScrollBarTemplate;
@@ -250,6 +250,7 @@ type
     IsVertical: Boolean;
     LastX, LastY: Integer;
     Enabled: Boolean;
+    property Bounds: TRect read FBounds;
     property OnScrollOffsetChanged: TOnScrollOffsetChanged read ScrollStatus.OnScrollOffsetChanged write ScrollStatus.OnScrollOffsetChanged;
     //property Offset: Single read GetOffset write SetOffset;
     property ScrollOffset: Integer read ScrollStatus.ScrollOffset;
@@ -432,6 +433,7 @@ type
     procedure SetBackground(const Value: TGeneric2DObject);
     procedure DoPaddingChange(Sender: TObject);
   protected
+    FIsMultyControl: Boolean;
     property Canvas: TCanvas read GetCanvas;
     procedure DesignPaint; virtual;
     procedure DoRender(Context: TCGContextBase; R: TRect); virtual; abstract;
@@ -441,7 +443,10 @@ type
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
     procedure KeyPress(var Key: Char); virtual;
     procedure AdjustClientRect(var Rect: TRect); virtual;
+    procedure ResetInlineMouseEvent; virtual;
+    function TransformInlineMouseEvent(const AMessage: TWMMouse): DWORD; virtual;
   public
+    property IsMultyControl: Boolean read FIsMultyControl;
     function GetClientRectWithOffset: TRect; virtual;
     procedure FreeContext(Context: TCGContextBase); virtual;
     procedure Render(Context: TCGContextBase);
@@ -520,7 +525,8 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
-    function TransformMouseEvent(AMessage: DWORD; AControl: TControl): DWORD;
+    function TransformMouseEvent(AMessage: DWORD; AControl: TControl): DWORD; overload;
+    function TransformMouseEvent(const AMessage: TWMMouse; AControl: TCGControl): DWORD; overload;
   public
     procedure DoFreeContext;
     function GetClientOffset: TPoint; override;
@@ -1468,7 +1474,7 @@ function TCGScene.TransformMouseEvent(AMessage: DWORD; AControl: TControl): DWOR
 begin
   Result:= AMessage;
   case AMessage of
-    WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN: begin
+    WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN, WM_XBUTTONDOWN: begin
       if (AControl <> FLastMouseControl) or (AMessage <> FLastMouseClickMessage - 1) then begin
         FLastMouseClickMessage:= AMessage;
         FLastMouseControl:= AControl;
@@ -1482,7 +1488,7 @@ begin
         FLastMouseTime:= GetTickCount;
       end;
     end;
-    WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP: begin
+    WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP, WM_XBUTTONUP: begin
       if (AControl <> FLastMouseControl) or (AMessage <> FLastMouseClickMessage + 1) then begin
         FLastMouseControl:= nil;
       end else begin
@@ -1490,6 +1496,20 @@ begin
       end;
     end;
   end;
+end;
+
+function TCGScene.TransformMouseEvent(const AMessage: TWMMouse; AControl: TCGControl): DWORD;
+begin
+  if AControl.IsMultyControl then
+    if AControl <> FLastMouseControl then begin
+      FLastMouseControl:= AControl;
+      AControl.ResetInlineMouseEvent;
+      Result:= AMessage.Msg;
+    end else begin
+      Result:= AControl.TransformInlineMouseEvent(AMessage);
+    end
+  else
+    Result:= TransformMouseEvent(AMessage.Msg, AControl);
 end;
 
 procedure TCGScene.UnsubscribeToContext(ACallBack: TCustomContextEvent);
@@ -1762,6 +1782,11 @@ begin
     FBorder.DoRender(Context, GetClientRectWithOffset);
 end;
 
+procedure TCGControl.ResetInlineMouseEvent;
+begin
+  //do nothing
+end;
+
 procedure TCGControl.SetAutoHint(const Value: TCGControl);
 begin
   FAutoHint := Value;
@@ -1808,6 +1833,11 @@ begin
     //
   end else if not (csDestroying in ComponentState) then
     raise EInvalidOperation.Create('Custom Graphic Controls can be placed only on TCGScene or Custom Graphic containers');
+end;
+
+function TCGControl.TransformInlineMouseEvent(const AMessage: TWMMouse): DWORD;
+begin
+  Result:= AMessage.Msg;
 end;
 
 procedure TCGControl.WMPaint(var Message: TWMPaint);
@@ -2340,6 +2370,7 @@ var
   Control: TControl;
   P: TPoint;
   FixedMsg: DWORD;
+  tmpMsg: TWMMouse;
 begin
   if (Width > 32768) or (Height > 32768) then
     P:= CalcCursorPos
@@ -2349,17 +2380,22 @@ begin
   if GetCapture = Handle then
   begin
     Control:= GetCaptureControl;
-    if Control.Parent <> Self then
+    //Control can be Self or our children
+    //should check this because we process only children
+    if Control = Self then
       Control := nil;
   end else
     Control := ControlAtPos(P, False);
   Result := False;
   if Control <> nil then
   begin
-    FixedMsg:= Scene.TransformMouseEvent(Message.Msg, Control);
-    P.X := P.X - Control.Left;
-    P.Y := P.Y - Control.Top;
-    Message.Result := Control.Perform(FixedMsg, Message.Keys, PointToLParam(P));
+    Assert(Control is TCGControl, 'Children can be only a TCGControl');
+    tmpMsg.Msg:= Message.Msg;
+    tmpMsg.Keys:= Message.Keys;
+    tmpMsg.Pos.X := P.X - Control.Left;
+    tmpMsg.Pos.Y := P.Y - Control.Top;
+    FixedMsg:= Scene.TransformMouseEvent(tmpMsg, TCGControl(Control));
+    Message.Result := Control.Perform(FixedMsg, tmpMsg.Keys, TMessage(tmpMsg).LParam);
     Result := True;
   end;
 end;
@@ -4322,13 +4358,13 @@ function TScrollBarStatus.MouseDown(Button: TMouseButton;
 
   procedure ScrollUp;
   begin
-    AutoScrollDown;
+    AutoScrollUp;
     ScrollStatus.AutoScrollGoDown(AOptions);
   end;
 
   procedure ScrollDown;
   begin
-    AutoScrollUp;
+    AutoScrollDown;
     ScrollStatus.AutoScrollGoUp(AOptions);
   end;
 var
@@ -4338,8 +4374,7 @@ begin
   if Button = mbLeft then begin
     for i := Low(TScrollBarElement) to High(TScrollBarElement) do
       ElementState[i]:= sbsDefault;
-    if (X < Bounds.Left) or (Y < Bounds.Top) or (X >= Bounds.Right) or
-        (Y >= Bounds.Bottom) then
+    if not MouseInScrollArea(X, Y) then
       Exit(False);
     if IsVertical then begin
       if Y < Template.ButtonSize then begin
@@ -4405,8 +4440,7 @@ var
 begin
   for i := Low(TScrollBarElement) to High(TScrollBarElement) do
     ElementState[i]:= sbsDefault;
-  if (Captured <> sbePage) and ((X < Bounds.Left) or (Y < Bounds.Top) or (X >= Bounds.Right) or
-      (Y >= Bounds.Bottom)) then
+  if (Captured <> sbePage) and not MouseInScrollArea(X, Y) then
     Exit;
   if IsVertical then begin
     if Y < Template.ButtonSize then begin
