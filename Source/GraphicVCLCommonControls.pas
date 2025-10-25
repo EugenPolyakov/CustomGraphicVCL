@@ -793,9 +793,12 @@ begin
     Context.PopScissor;
   end;
 
+  p:= FText.CalculateSize;
   if AutoSize then begin
-    p:= FText.CalculateSize;
     if (R.Height <> p.Y) or (not WordWrap and (R.Width <> p.X)) then
+      AdjustSize;
+  end else begin
+    if (ActualHeight <> p.Y) or (ActualWidth <> p.X) then
       AdjustSize;
   end;
 end;
