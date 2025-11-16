@@ -1402,13 +1402,24 @@ begin
 end;
 
 procedure TCGSpinEdit.CMTextChanged(var Message: TMessage);
+var v: Integer;
 begin
   if Text = '' then begin
     Text:= IntToStr(MinValue);
     SelStart:= 0;
     SelLength:= Length(Text);
-  end else
-    inherited;
+  end else if Text = '-' then
+    inherited
+  else begin
+    if not TryStrToInt(Text, v) then
+      Text:= IntToStr(MinValue)
+    else if v > MaxValue then
+      Text:= IntToStr(MaxValue)
+    else if v < MinValue then
+      Text:= IntToStr(MinValue)
+    else
+      inherited;
+  end;
 end;
 
 constructor TCGSpinEdit.Create(AOwner: TComponent);
@@ -1473,9 +1484,15 @@ end;
 procedure TCGSpinEdit.KeyPress(var Key: Char);
 begin
   case Key of
-    #0..#31, '0'..'9': inherited;
+    #0..#31, '0'..'9': inherited KeyPress(Key);
+    '-': begin
+      if SelStart <> 0 then
+        Key:= #0;
+      inherited KeyPress(Key);
+    end
   else
     Key:= #0;
+    inherited KeyPress(Key);
   end;
 end;
 
