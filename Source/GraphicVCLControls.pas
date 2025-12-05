@@ -642,7 +642,7 @@ type
     procedure CorrectMouseEvent(var Message: TWMMouse); override;
     procedure AlignControls(AControl: TControl; var Rect: TRect); override;
     procedure OnScroll(AScropStatus: Pointer);
-    procedure ReAlignScrollBars;
+    function ReAlignScrollBars: Boolean;
   public
     function GetClientOrigin: TPoint; override;
     function GetClientOffset: TPoint; override;
@@ -2159,14 +2159,15 @@ end;
 
 procedure TCGWinControl.CorrectMouseEvent(var Message: TWMMouse);
 var CaptureControl: TControl;
-    P: TPoint;
+    P, S: TPoint;
 begin
   //fix mouse position on capture
   CaptureControl := GetCaptureControl;
   if (CaptureControl <> nil) and (
       (CaptureControl = Self) or (CaptureControl.Parent = Self)) then begin
-    P.Create(0, 0);
-    P:= ClientToParent(p, Scene);
+    P:= ClientOrigin;
+    S:= Scene.ClientOrigin;
+    P.Offset(-S.X, -S.Y);
     Dec(Message.XPos, P.X);
     Dec(Message.YPos, P.Y);
   end;
@@ -3824,6 +3825,11 @@ begin
     end;
 
   R:= Rect;
+  if FScrollBars.Vertical.Enabled then
+    R.Width:= R.Width - FScrollBars.Vertical.Template.ButtonSize;
+  if FScrollBars.Horizontal.Enabled then
+    R.Height:= R.Height - FScrollBars.Horizontal.Template.ButtonSize;
+
   if Rect.Width < AlWidth then
     R.Width:= AlWidth;
   if Rect.Height < AlHeight then
@@ -3831,7 +3837,20 @@ begin
 
   inherited AlignControls(AControl, R);
 
-  ReAlignScrollBars;
+  if ReAlignScrollBars then begin
+    R:= Rect;
+    if FScrollBars.Vertical.Enabled then
+      R.Width:= R.Width - FScrollBars.Vertical.Template.ButtonSize;
+    if FScrollBars.Horizontal.Enabled then
+      R.Height:= R.Height - FScrollBars.Horizontal.Template.ButtonSize;
+
+    if Rect.Width < AlWidth then
+      R.Width:= AlWidth;
+    if Rect.Height < AlHeight then
+      R.Height:= AlHeight;
+
+    inherited AlignControls(AControl, R);
+  end;
 end;
 
 procedure TCGScrollBox.CMRepeatTimer(var Message: TMessage);
@@ -3916,10 +3935,11 @@ begin
   Invalidate;
 end;
 
-procedure TCGScrollBox.ReAlignScrollBars;
+function TCGScrollBox.ReAlignScrollBars: Boolean;
 var MaxWidth, MaxHeight: Integer;
   i: Integer;
   R: TRect;
+  oldVert, oldHor: Boolean;
 begin
   MaxWidth:= 0;
   MaxHeight:= 0;
@@ -3932,11 +3952,23 @@ begin
           if MaxHeight < Top + Height then
             MaxHeight:= Top + Height;
         end;
+        alTop, alBottom: begin
+          if MaxHeight < Top + Height then
+            MaxHeight:= Top + Height;
+        end;
+        alLeft, alRight: begin
+          if MaxWidth < Left + Width then
+            MaxWidth:= Left + Width;
+        end;
       end;
 
   R:= GetClientRect;
   AdjustClientRect(R);
+  oldVert:= FScrollBars.Vertical.Enabled;
+  oldHor:= FScrollBars.Horizontal.Enabled;
   FScrollBars.ReAlign(R, MaxWidth, MaxHeight);
+
+  Result:= (oldVert <> FScrollBars.Vertical.Enabled) or (oldHor <> FScrollBars.Horizontal.Enabled);
 end;
 
 procedure TCGScrollBox.Render(Context: TCGContextBase);
