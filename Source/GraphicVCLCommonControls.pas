@@ -151,8 +151,7 @@ type
     property OnRenderingNewPicture: TBilboardNotify read FOnRenderingNewPicture write FOnRenderingNewPicture;
   end;
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
-  TCGEdit = class (TControlWithInput)
+  TCGCustomEdit = class (TControlWithInput)
   private
     FSelectionColor: TColor;
     FSelectionBrush: TContextController<TCGSolidBrush>;
@@ -203,6 +202,11 @@ type
     property SelLength: Integer read GetSelLength write SetSelLength;
     property SelStart: Integer read GetSelStart write SetSelStart;
     property SelText: string read GetSelText write SetSelText;
+    property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
+  end;
+
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
+  TCGEdit = class (TCGCustomEdit)
   published
     property Align;
     property Anchors;
@@ -223,11 +227,11 @@ type
     property OnMouseLeave;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property HideSelection: Boolean read FHideSelection write SetHideSelection default True;
-    property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
+    property ReadOnly;
   end;
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
-  TCGSpinEdit = class (TCGEdit)
+  TCGSpinEdit = class (TCGCustomEdit)
   private
     FMinValue: Integer;
     FUpDown: TUpDownTemplate;
@@ -262,6 +266,26 @@ type
     property UpDown: TUpDownTemplate read FUpDown write SetUpDown;
     property MaxValue: Integer read FMaxValue write SetMaxValue;
     property MinValue: Integer read FMinValue write SetMinValue;
+    property Align;
+    property Anchors;
+    property Text;
+    property SelectionColor: TColor read FSelectionColor write SetSelectionColor;
+    property Constraints;
+    property Enabled;
+    property Touch;
+    property Visible;
+    property OnClick;
+    property OnDblClick;
+    property OnGesture;
+    property OnMouseActivate;
+    property OnMouseDown;
+    property OnMouseMove;
+    property OnMouseUp;
+    property OnMouseEnter;
+    property OnMouseLeave;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property HideSelection: Boolean read FHideSelection write SetHideSelection default True;
+    property ReadOnly;
   end;
 
   TScrolledWithFont = class (TControlWithInput)
@@ -967,22 +991,22 @@ begin
   Invalidate;
 end;
 
-{ TCGEdit }
+{ TCGCustomEdit }
 
-procedure TCGEdit.Change;
+procedure TCGCustomEdit.Change;
 begin
   if Assigned(FOnChange) then
     FOnChange(Self);
 end;
 
-procedure TCGEdit.CMColorChanged(var Message: TMessage);
+procedure TCGCustomEdit.CMColorChanged(var Message: TMessage);
 begin
   if FText <> nil then
     FText.Color:= Color;
   Invalidate;
 end;
 
-procedure TCGEdit.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
+procedure TCGCustomEdit.CMFontGeneratorChanged(var Message: TCMFontGeneratorChanged);
 begin
   inherited;
   if FText <> nil then begin
@@ -998,7 +1022,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.CMTextChanged(var Message: TMessage);
+procedure TCGCustomEdit.CMTextChanged(var Message: TMessage);
 begin
   if FText <> nil then begin
     FText.Text:= Caption;
@@ -1012,7 +1036,7 @@ begin
   Invalidate;
 end;
 
-constructor TCGEdit.Create(AOwner: TComponent);
+constructor TCGCustomEdit.Create(AOwner: TComponent);
 begin
   inherited;
   ControlStyle:= [csCaptureMouse, csClickEvents, csDoubleClicks, csSetCaption];
@@ -1023,7 +1047,7 @@ begin
   FHideSelection:= True;
 end;
 
-procedure TCGEdit.DblClick;
+procedure TCGCustomEdit.DblClick;
 begin
   if FText <> nil then begin
     FSelStart:= FText.GetCursorPosition(0);
@@ -1032,7 +1056,7 @@ begin
   inherited;
 end;
 
-procedure TCGEdit.DesignPaint;
+procedure TCGCustomEdit.DesignPaint;
 var s: string;
     r: TRect;
 begin
@@ -1046,7 +1070,7 @@ begin
   Canvas.TextRect(r, s, [tfSingleLine, tfVerticalCenter]);
 end;
 
-destructor TCGEdit.Destroy;
+destructor TCGCustomEdit.Destroy;
 begin
   FreeText(FText);
   FSelectionBrush.UpdateValue(nil, Scene);
@@ -1054,7 +1078,7 @@ begin
   inherited;
 end;
 
-procedure TCGEdit.DoRender(Context: TCGContextBase; R: TRect);
+procedure TCGCustomEdit.DoRender(Context: TCGContextBase; R: TRect);
 var sc: TScissorRect;
     rStart, rEnd: TTextPosition;
 begin
@@ -1103,14 +1127,14 @@ begin
   end;
 end;
 
-procedure TCGEdit.EnsureSelectionBrushReady;
+procedure TCGCustomEdit.EnsureSelectionBrushReady;
 begin
   if FSelectionBrush.Value = nil then
     FSelectionBrush.UpdateValue(GetSolidBrush(FSelectionColor), Scene);
   FSelectionBrush.InitializeContext;
 end;
 
-function TCGEdit.EnsureTextReady: Boolean;
+function TCGCustomEdit.EnsureTextReady: Boolean;
 begin
   Result:= FText <> nil;
   if not Result and (Font <> nil) then begin
@@ -1126,7 +1150,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.FreeContext(Context: TCGContextBase);
+procedure TCGCustomEdit.FreeContext(Context: TCGContextBase);
 begin
   if FText <> nil then
     FText.FreeContext(Context);
@@ -1134,22 +1158,22 @@ begin
   FCursorBrush.FreeContext(Context);
 end;
 
-function TCGEdit.GetSelLength: Integer;
+function TCGCustomEdit.GetSelLength: Integer;
 begin
   Result:= Abs(FSelStart.SymbolPosition - FSelEnd.SymbolPosition);
 end;
 
-function TCGEdit.GetSelStart: Integer;
+function TCGCustomEdit.GetSelStart: Integer;
 begin
   Result:= Min(FSelStart.SymbolPosition, FSelEnd.SymbolPosition);
 end;
 
-function TCGEdit.GetSelText: string;
+function TCGCustomEdit.GetSelText: string;
 begin
   Result:= Copy(Text, SelStart + 1, SelLength);
 end;
 
-procedure TCGEdit.KeyDown(var Key: Word; Shift: TShiftState);
+procedure TCGCustomEdit.KeyDown(var Key: Word; Shift: TShiftState);
 var s: string;
 begin
   inherited;
@@ -1208,7 +1232,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.KeyPress(var Key: Char);
+procedure TCGCustomEdit.KeyPress(var Key: Char);
 var s: string;
 begin
   inherited;
@@ -1229,13 +1253,13 @@ begin
   end;
 end;
 
-procedure TCGEdit.KeyUp(var Key: Word; Shift: TShiftState);
+procedure TCGCustomEdit.KeyUp(var Key: Word; Shift: TShiftState);
 begin
   inherited;
 
 end;
 
-procedure TCGEdit.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+procedure TCGCustomEdit.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var p, old: TTextPosition;
 begin
@@ -1264,7 +1288,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.MouseMove(Shift: TShiftState; X, Y: Integer);
+procedure TCGCustomEdit.MouseMove(Shift: TShiftState; X, Y: Integer);
 var p, old: TTextPosition;
 begin
   inherited MouseMove(Shift, X, Y);
@@ -1278,13 +1302,13 @@ begin
   end;
 end;
 
-procedure TCGEdit.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+procedure TCGCustomEdit.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited MouseUp(Button, Shift, X, Y);
 end;
 
-procedure TCGEdit.SetHideSelection(const Value: Boolean);
+procedure TCGCustomEdit.SetHideSelection(const Value: Boolean);
 begin
   if FHideSelection <> Value then begin
     FHideSelection:= Value;
@@ -1292,7 +1316,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.SetSelectionColor(const Value: TColor);
+procedure TCGCustomEdit.SetSelectionColor(const Value: TColor);
 begin
   FSelectionColor := Value;
   if (FSelectionBrush.Value <> nil) and (FSelectionBrush.Value.Color <> Value) then begin
@@ -1300,7 +1324,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.SetSelLength(const Value: Integer);
+procedure TCGCustomEdit.SetSelLength(const Value: Integer);
 begin
   if SelLength <> Value then begin
     if FSelStart.SymbolPosition > FSelEnd.SymbolPosition then
@@ -1315,7 +1339,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.SetSelStart(const Value: Integer);
+procedure TCGCustomEdit.SetSelStart(const Value: Integer);
 var oldLength, oldStart: Integer;
 begin
   oldStart:= SelStart;
@@ -1331,7 +1355,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.SetSelText(const Value: string);
+procedure TCGCustomEdit.SetSelText(const Value: string);
 var oldLength: Integer;
 begin
   oldLength:= SelLength;
@@ -1340,13 +1364,13 @@ begin
   SelStart:= SelStart + Length(Value);
 end;
 
-procedure TCGEdit.WMClear(var Message: TWMClear);
+procedure TCGCustomEdit.WMClear(var Message: TWMClear);
 begin
   if not ReadOnly then
     SelText:= '';
 end;
 
-procedure TCGEdit.WMCopy(var Message: TWMCopy);
+procedure TCGCustomEdit.WMCopy(var Message: TWMCopy);
 var s: string;
 begin
   s:= SelText;
@@ -1355,7 +1379,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.WMCut(var Message: TWMCut);
+procedure TCGCustomEdit.WMCut(var Message: TWMCut);
 var s: string;
 begin
   s:= SelText;
@@ -1366,7 +1390,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.WMPaste(var Message: TWMPaste);
+procedure TCGCustomEdit.WMPaste(var Message: TWMPaste);
 var s: string;
 begin
   if not ReadOnly then begin
@@ -1375,7 +1399,7 @@ begin
   end;
 end;
 
-procedure TCGEdit.WMWindowPosChanged(var Message: TWMWindowPosChanged);
+procedure TCGCustomEdit.WMWindowPosChanged(var Message: TWMWindowPosChanged);
 begin
   {if FText <> nil then begin
     FText.MaxHeight:= Height;
