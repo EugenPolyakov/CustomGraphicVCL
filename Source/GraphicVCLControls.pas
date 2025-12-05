@@ -3860,10 +3860,17 @@ begin
 end;
 
 procedure TCGScrollBox.CorrectMouseEvent(var Message: TWMMouse);
+var CaptureControl: TControl;
 begin
   inherited;
-  Inc(Message.XPos, FScrollBars.Horizontal.ScrollOffset);
-  Inc(Message.YPos, FScrollBars.Vertical.ScrollOffset);
+
+  //fix mouse position without capture
+  CaptureControl := GetCaptureControl;
+  if (CaptureControl = nil) or (
+      (CaptureControl <> Self) and (CaptureControl.Parent <> Self)) then begin
+    Inc(Message.XPos, FScrollBars.Horizontal.ScrollOffset);
+    Inc(Message.YPos, FScrollBars.Vertical.ScrollOffset);
+  end;
 end;
 
 constructor TCGScrollBox.Create(AOwner: TComponent);
