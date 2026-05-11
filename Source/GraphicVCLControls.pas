@@ -2493,7 +2493,12 @@ begin
     FBackground.Value.DrawWithSize(R.TopLeft, R.Size);
   end;
   AdjustClientRect(R);
-  RenderChild(Context);
+  Context.PushScissor(TScissorRect.Create(R, Scene.Height - R.Bottom));
+  try
+    RenderChild(Context);
+  finally
+    Context.PopScissor;
+  end;
   if FBorder <> nil then
     FBorder.DoRender(Context, GetClientRectWithOffset);
 end;
